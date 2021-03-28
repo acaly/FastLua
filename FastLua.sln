@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31019.35
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLua", "FastLua\FastLua.csproj", "{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLuaExample", "FastLuaExample\FastLuaExample.csproj", "{C6892055-5857-4F48-83BC-B3F4B2724672}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6892055-5857-4F48-83BC-B3F4B2724672}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6892055-5857-4F48-83BC-B3F4B2724672}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {95E629BE-C68F-4F7B-BE73-55E6D43D218B}
+	EndGlobalSection
+EndGlobal
