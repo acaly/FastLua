@@ -25,7 +25,6 @@ namespace FastLua.SyntaxTree
 
     public abstract class ExpressionSyntaxNode : SyntaxNode
     {
-        //TODO need to implement these in derived classes
         public virtual ExpressionMultiRetState MultiRetState { get; set; }
         public virtual ExpressionReceiverMultiRetState ReceiverMultiRetState { get; set; }
         public virtual SpecificationType SpecificationType { get; set; }
