@@ -27,14 +27,14 @@ namespace FastLua.SyntaxTree
     {
         public virtual ExpressionMultiRetState MultiRetState { get; set; }
         public virtual ExpressionReceiverMultiRetState ReceiverMultiRetState { get; set; }
-        public virtual SpecificationType SpecificationType { get; set; }
+        public virtual SpecializationType SpecializationType { get; set; }
 
         internal override void Serialize(BinaryWriter bw)
         {
             base.Serialize(bw);
             SerializeV(bw, MultiRetState);
             SerializeV(bw, ReceiverMultiRetState);
-            SerializeV(bw, SpecificationType);
+            SerializeV(bw, SpecializationType);
         }
 
         internal override void Deserialize(BinaryReader br)
@@ -42,7 +42,7 @@ namespace FastLua.SyntaxTree
             base.Deserialize(br);
             MultiRetState = DeserializeV<ExpressionMultiRetState>(br);
             ReceiverMultiRetState = DeserializeV<ExpressionReceiverMultiRetState>(br);
-            SpecificationType = DeserializeV<SpecificationType>(br);
+            SpecializationType = DeserializeV<SpecializationType>(br);
         }
     }
 }

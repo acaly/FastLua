@@ -31,7 +31,7 @@ namespace FastLua.SyntaxTree
         public NodeRef<ImportedUpValueListSyntaxNode> ImportUpValueList { get; set; } //Only for upvalue.
         //TODO consider adding an index for parameter
 
-        public SpecificationType Specification { get; set; }
+        public SpecializationType Specialization { get; set; }
         public LocalVariableEscape Escape { get; set; }
         public NodeRef<UpValueListSyntaxNode> ExportUpValueList { get; set; } //The export list this var belongs to (may be null).
 
@@ -42,7 +42,7 @@ namespace FastLua.SyntaxTree
             SerializeV(bw, Kind);
             SerializeR(bw, Declaration);
             SerializeR(bw, ImportUpValueList);
-            SerializeV(bw, Specification);
+            SerializeV(bw, Specialization);
             SerializeV(bw, Escape);
             SerializeR(bw, ExportUpValueList);
         }
@@ -53,7 +53,7 @@ namespace FastLua.SyntaxTree
             Kind = DeserializeV<LocalVariableKind>(br);
             Declaration = DeserializeR<StatementSyntaxNode>(br);
             ImportUpValueList = DeserializeR<ImportedUpValueListSyntaxNode>(br);
-            Specification = DeserializeV<SpecificationType>(br);
+            Specialization = DeserializeV<SpecializationType>(br);
             Escape = DeserializeV<LocalVariableEscape>(br);
             ExportUpValueList = DeserializeR<UpValueListSyntaxNode>(br);
         }

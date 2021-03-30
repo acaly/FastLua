@@ -7,21 +7,21 @@ using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
 {
-    public sealed class ReturnStatementSyntaxNode : StatementSyntaxNode
+    public sealed class InvocationStatementSyntaxNode : StatementSyntaxNode
     {
-        public ExpressionListSyntaxNode Values { get; set; }
+        public InvocationExpressionSyntaxNode Invocation { get; set; }
 
         internal override void Serialize(BinaryWriter bw)
         {
-            SerializeHeader<ReturnStatementSyntaxNode>(bw);
+            SerializeHeader<InvocationStatementSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeO(bw, Values);
+            SerializeO(bw, Invocation);
         }
 
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            Values = DeserializeO<ExpressionListSyntaxNode>(br);
+            Invocation = DeserializeO<InvocationExpressionSyntaxNode>(br);
         }
 
         public override void Traverse(ISyntaxTreeVisitor visitor)
@@ -29,7 +29,7 @@ namespace FastLua.SyntaxTree
             visitor.Visit(this);
             visitor.Start(this);
             base.Traverse(visitor);
-            Values.Traverse(visitor);
+            Invocation.Traverse(visitor);
             visitor.Finish(this);
         }
     }

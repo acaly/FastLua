@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
 {
-    public enum SpecificationLuaType
+    public enum SpecializationLuaType
     {
         Unspecified,
         Polymorphic,
@@ -23,10 +23,10 @@ namespace FastLua.SyntaxTree
         UserData,
     }
 
-    public struct SpecificationType
+    public struct SpecializationType
     {
-        public SpecificationLuaType LuaType;
-        public uint TableSpecification;
-        public uint CLRStructSpecification;
+        public SpecializationLuaType LuaType;
+        public uint TableSpecialization;
+        public uint CLRStructSpecialization;
     }
 }

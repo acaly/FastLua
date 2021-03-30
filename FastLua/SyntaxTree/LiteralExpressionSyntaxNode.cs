@@ -15,10 +15,10 @@ namespace FastLua.SyntaxTree
         private bool _boolValue;
         public bool BoolValue
         {
-            get => SpecificationType.LuaType == SpecificationLuaType.Bool ? _boolValue : throw new InvalidOperationException();
+            get => SpecializationType.LuaType == SpecializationLuaType.Bool ? _boolValue : throw new InvalidOperationException();
             set
             {
-                SpecificationType = new() { LuaType = SpecificationLuaType.Bool };
+                SpecializationType = new() { LuaType = SpecializationLuaType.Bool };
                 _boolValue = value;
             }
         }
@@ -26,10 +26,10 @@ namespace FastLua.SyntaxTree
         private long _int64Value;
         public long Int64Value
         {
-            get => SpecificationType.LuaType == SpecificationLuaType.Int64 ? _int64Value : throw new InvalidOperationException();
+            get => SpecializationType.LuaType == SpecializationLuaType.Int64 ? _int64Value : throw new InvalidOperationException();
             set
             {
-                SpecificationType = new() { LuaType = SpecificationLuaType.Int64 };
+                SpecializationType = new() { LuaType = SpecializationLuaType.Int64 };
                 _int64Value = value;
             }
         }
@@ -37,10 +37,10 @@ namespace FastLua.SyntaxTree
         private double _doubleValue;
         public double DoubleValue
         {
-            get => SpecificationType.LuaType == SpecificationLuaType.Double ? _doubleValue : throw new InvalidOperationException();
+            get => SpecializationType.LuaType == SpecializationLuaType.Double ? _doubleValue : throw new InvalidOperationException();
             set
             {
-                SpecificationType = new() { LuaType = SpecificationLuaType.Double };
+                SpecializationType = new() { LuaType = SpecializationLuaType.Double };
                 _doubleValue = value;
             }
         }
@@ -50,10 +50,10 @@ namespace FastLua.SyntaxTree
         private double? _sDoubleValue;
         public string StringValue
         {
-            get => SpecificationType.LuaType == SpecificationLuaType.String ? _stringValue : throw new InvalidOperationException();
+            get => SpecializationType.LuaType == SpecializationLuaType.String ? _stringValue : throw new InvalidOperationException();
             set
             {
-                SpecificationType = new() { LuaType = SpecificationLuaType.String };
+                SpecializationType = new() { LuaType = SpecializationLuaType.String };
                 _stringValue = value;
                 _sIntValue = LuaParserHelper.ParseInteger(value);
                 _sDoubleValue = LuaParserHelper.ParseNumber(value);
@@ -65,46 +65,46 @@ namespace FastLua.SyntaxTree
             _stringValue = str;
             _sIntValue = si;
             _sDoubleValue = sd;
-            SpecificationType = new() { LuaType = SpecificationLuaType.String };
+            SpecializationType = new() { LuaType = SpecializationLuaType.String };
         }
 
         public bool CanBeInt64 =>
-            SpecificationType.LuaType == SpecificationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
             _sIntValue.HasValue;
 
         public bool CanBeDouble =>
-            SpecificationType.LuaType == SpecificationLuaType.Int64 ||
-            SpecificationType.LuaType == SpecificationLuaType.Double ||
+            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Double ||
             _sDoubleValue.HasValue;
 
         public bool CanBeString =>
-            SpecificationType.LuaType == SpecificationLuaType.Int64 ||
-            SpecificationType.LuaType == SpecificationLuaType.Double ||
-            SpecificationType.LuaType == SpecificationLuaType.String;
+            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Double ||
+            SpecializationType.LuaType == SpecializationLuaType.String;
 
         public bool AsCondition =>
-            !(SpecificationType.LuaType == SpecificationLuaType.Nil ||
-                SpecificationType.LuaType == SpecificationLuaType.Bool && !_boolValue);
+            !(SpecializationType.LuaType == SpecializationLuaType.Nil ||
+                SpecializationType.LuaType == SpecializationLuaType.Bool && !_boolValue);
 
         internal override void Serialize(BinaryWriter bw)
         {
             SerializeHeader<LiteralExpressionSyntaxNode>(bw);
             base.Serialize(bw);
-            switch (SpecificationType.LuaType)
+            switch (SpecializationType.LuaType)
             {
-            case SpecificationLuaType.Nil:
+            case SpecializationLuaType.Nil:
                 break;
-            case SpecificationLuaType.Bool:
+            case SpecializationLuaType.Bool:
                 SerializeV(bw, _boolValue);
                 break;
-            case SpecificationLuaType.Int64:
+            case SpecializationLuaType.Int64:
                 SerializeV(bw, _int64Value);
                 break;
-            case SpecificationLuaType.Double:
+            case SpecializationLuaType.Double:
                 SerializeV(bw, _doubleValue);
                 SerializeV(bw, _int64Value);
                 break;
-            case SpecificationLuaType.String:
+            case SpecializationLuaType.String:
                 bw.Write(_stringValue);
                 bw.Write(_sIntValue.HasValue);
                 if (_sIntValue.HasValue)
@@ -123,21 +123,21 @@ namespace FastLua.SyntaxTree
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            switch (SpecificationType.LuaType)
+            switch (SpecializationType.LuaType)
             {
-            case SpecificationLuaType.Nil:
+            case SpecializationLuaType.Nil:
                 break;
-            case SpecificationLuaType.Bool:
+            case SpecializationLuaType.Bool:
                 _boolValue = br.ReadBoolean();
                 break;
-            case SpecificationLuaType.Int64:
+            case SpecializationLuaType.Int64:
                 _int64Value = br.ReadInt64();
                 break;
-            case SpecificationLuaType.Double:
+            case SpecializationLuaType.Double:
                 _doubleValue = br.ReadDouble();
                 _int64Value = br.ReadInt64();
                 break;
-            case SpecificationLuaType.String:
+            case SpecializationLuaType.String:
                 _stringValue = br.ReadString();
                 _sIntValue = br.ReadBoolean() ? br.ReadInt64() : null;
                 _sDoubleValue = br.ReadBoolean() ? br.ReadDouble() : null;

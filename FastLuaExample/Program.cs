@@ -15,6 +15,7 @@ namespace FastLuaExample
         private static readonly string _code = "" +
             string.Concat(Enumerable.Repeat(
 @"do
+    print(12 + 34)
     local x = ""abc"";
     local y = function(i) return x .. 'x' end
     local count = 0

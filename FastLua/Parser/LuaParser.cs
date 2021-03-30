@@ -160,7 +160,18 @@ namespace FastLua.Parser
                 }
                 else
                 {
-                    throw new LuaCompilerException("Invalid assignment statement");
+                    throw new LuaCompilerException("Invalid assignment statement.");
+                }
+            }
+            else
+            {
+                if (e is InvocationExpressionSyntaxNode i)
+                {
+                    _output.CurrentBlock.Add(new InvocationStatementSyntaxNode() { Invocation = i });
+                }
+                else
+                {
+                    throw new LuaCompilerException("Expression statement must be assignment or function call.");
                 }
             }
         }
@@ -565,7 +576,7 @@ namespace FastLua.Parser
             case LuaTokenType.Nil:
                 ret = new LiteralExpressionSyntaxNode()
                 {
-                    SpecificationType = new() { LuaType = SpecificationLuaType.Nil },
+                    SpecializationType = new() { LuaType = SpecializationLuaType.Nil },
                 };
                 Next(ref t);
                 return ret;
