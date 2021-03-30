@@ -7,24 +7,17 @@ using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
 {
-    public sealed class ExternalFunctionReferenceSyntaxNode : SyntaxNode
+    public sealed class AuxiliaryBlockSyntaxNode : BlockSyntaxNode
     {
-        public int Index { get; set; } //-1 is parent. Children from 0.
-        public ulong GlobalFunctionId { get; set; }
-
         internal override void Serialize(BinaryWriter bw)
         {
-            SerializeHeader<ExternalFunctionReferenceSyntaxNode>(bw);
+            SerializeHeader<AuxiliaryBlockSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeV(bw, Index);
-            SerializeV(bw, GlobalFunctionId);
         }
 
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            Index = DeserializeV<int>(br);
-            GlobalFunctionId = DeserializeV<ulong>(br);
         }
 
         public override void Traverse(ISyntaxTreeVisitor visitor)

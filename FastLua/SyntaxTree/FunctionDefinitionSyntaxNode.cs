@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
@@ -14,15 +15,21 @@ namespace FastLua.SyntaxTree
         MultiRet,
     }
 
-    public sealed class FunctionDefinitionSyntaxNode : SyntaxNode
+    public sealed class FunctionDefinitionSyntaxNode : BlockSyntaxNode
     {
-        public ExternalFunctionReferenceSyntaxNode ParentFunction { get; set; }
+        private static ulong _nextGlobalId = 1;
+        public static ulong CreateGlobalId() => Interlocked.Increment(ref _nextGlobalId);
+
+        public ulong GlobalId { get; set; }
+        public ExternalFunctionReferenceSyntaxNode ParentExternalFunction { get; set; }
         public List<ExternalFunctionReferenceSyntaxNode> ChildrenFunctions { get; } = new();
+
+        //Nodes in this list provide the LocalVariableDefinitionSyntaxNode.
+        //Index of this list is called ImportId, used to make the closure obj.
         public List<ImportedUpValueListSyntaxNode> ImportedUpValueLists { get; } = new();
-        public List<NodeRef<UpValueListSyntaxNode>> ExportedUpValueLists { get; } = new();
 
         public List<LocalVariableDefinitionSyntaxNode> Parameters { get; } = new();
-        public SimpleBlockSyntaxNode MainBlock { get; set; }
+
         public bool HasVararg { get; set; }
         public FunctionReturnNumber ReturnNumber { get; set; }
 
@@ -30,12 +37,11 @@ namespace FastLua.SyntaxTree
         {
             SerializeHeader<FunctionDefinitionSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeO(bw, ParentFunction);
+            SerializeV(bw, GlobalId);
+            SerializeO(bw, ParentExternalFunction);
             SerializeL(bw, ChildrenFunctions);
             SerializeL(bw, ImportedUpValueLists);
-            SerializeRL(bw, ExportedUpValueLists);
             SerializeL(bw, Parameters);
-            SerializeO(bw, MainBlock);
             SerializeV(bw, HasVararg);
             SerializeV(bw, ReturnNumber);
         }
@@ -43,12 +49,11 @@ namespace FastLua.SyntaxTree
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            ParentFunction = DeserializeO<ExternalFunctionReferenceSyntaxNode>(br);
+            GlobalId = DeserializeV<ulong>(br);
+            ParentExternalFunction = DeserializeO<ExternalFunctionReferenceSyntaxNode>(br);
             DeserializeL(br, ChildrenFunctions);
             DeserializeL(br, ImportedUpValueLists);
-            DeserializeRL(br, ExportedUpValueLists);
             DeserializeL(br, Parameters);
-            MainBlock = DeserializeO<SimpleBlockSyntaxNode>(br);
             HasVararg = DeserializeV<bool>(br);
             ReturnNumber = DeserializeV<FunctionReturnNumber>(br);
         }
@@ -58,10 +63,9 @@ namespace FastLua.SyntaxTree
             visitor.Visit(this);
             visitor.Start(this);
             base.Traverse(visitor);
-            ParentFunction?.Traverse(visitor);
+            ParentExternalFunction?.Traverse(visitor);
             ChildrenFunctions.Traverse(visitor);
             Parameters.Traverse(visitor);
-            MainBlock.Traverse(visitor);
             visitor.Finish(this);
         }
     }

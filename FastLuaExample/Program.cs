@@ -22,7 +22,26 @@ namespace FastLuaExample
     end
 end
 ", 1));
+
         public static void Main()
+        {
+            var reader = new StringReader(_code);
+            var rawTokens = new LuaRawTokenizer();
+            var luaTokens = new LuaTokenizer();
+            rawTokens.Reset(reader);
+            luaTokens.Reset(rawTokens);
+
+            var parser = new LuaParser();
+            var builder = new SyntaxTreeBuilder();
+            builder.Start();
+            luaTokens.EnsureMoveNext();
+            parser.Reset(luaTokens, builder);
+            parser.Parse();
+
+            var ast = builder.Finish();
+        }
+
+        public static void Tokenizer()
         {
             var reader = new StringReader(_code);
             var rawTokens = new LuaRawTokenizer();
@@ -58,13 +77,9 @@ end
                     ReturnNumber = FunctionReturnNumber.SingleRet,
                 },
             };
-            tree.RootFunction.MainBlock = new()
+            tree.RootFunction.Statements.Add(new ReturnStatementSyntaxNode()
             {
-                ParentFunction = new(tree.RootFunction),
-            };
-            tree.RootFunction.MainBlock.Statements.Add(new ReturnStatementSyntaxNode()
-            {
-                ParentBlock = new(tree.RootFunction.MainBlock),
+                ParentBlock = new(tree.RootFunction),
                 Values = new ExpressionListSyntaxNode()
                 {
                     Expressions =
@@ -79,11 +94,11 @@ end
 
             var stream = new MemoryStream();
             var writer = new BinaryWriter(stream);
-            tree.SerializeSyntaxTree(writer);
+            tree.Write(writer);
 
             stream.Seek(0, SeekOrigin.Begin);
             var reader = new BinaryReader(stream);
-            var newTree = SyntaxRoot.DeserializeSyntaxTree(reader);
+            var newTree = SyntaxRoot.Read(reader);
         }
     }
 }

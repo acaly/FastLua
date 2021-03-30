@@ -33,9 +33,25 @@ namespace FastLua.Parser
         Number, Name, String,
     }
 
+    public static class LuaTokenTypeExtensions
+    {
+        public static string ToReadableString(this LuaTokenType t)
+        {
+            if (t == LuaTokenType.EOS)
+            {
+                return "EOS";
+            }
+            if (t < LuaTokenType.First)
+            {
+                return new string((char)t, 1);
+            }
+            return t.ToString();
+        }
+    }
+
     public class LuaTokenizer : AbstractTokenSequence<LuaTokenType, LuaTokenizer.Storage>
     {
-        private static readonly KeywordDictionary _keywords = new()
+        private static readonly StringDictionary<LuaTokenType> _keywords = new()
         {
             { "do", LuaTokenType.Do },
             { "else", LuaTokenType.Else },

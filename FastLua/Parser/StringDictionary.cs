@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 
 namespace FastLua.Parser
 {
-    internal class KeywordDictionary : Dictionary<int, (string key, LuaTokenType value)>
+    internal class StringDictionary<T> : Dictionary<int, (string key, T value)>
     {
         //Although I don't believe CLR implementation will give a collision on Lua keywords, let's be correct.
         private bool _hasCollision = false;
-        private Dictionary<string, LuaTokenType> _backup = null;
+        private Dictionary<string, T> _backup = null;
 
-        public void Add(string kw, LuaTokenType t)
+        public void Add(string kw, T t)
         {
             if (_hasCollision)
             {
@@ -20,6 +20,7 @@ namespace FastLua.Parser
             }
             else if (!TryAdd(kw.GetHashCode(), (kw, t)))
             {
+                _hasCollision = true;
                 MoveToBackup();
                 _backup.Add(kw, t);
             }
@@ -34,7 +35,7 @@ namespace FastLua.Parser
             }
         }
 
-        public bool TryGetValue(ReadOnlySpan<char> str, out LuaTokenType t)
+        public bool TryGetValue(ReadOnlySpan<char> str, out T t)
         {
             if (_hasCollision)
             {

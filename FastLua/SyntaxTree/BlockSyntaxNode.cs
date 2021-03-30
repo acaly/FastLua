@@ -11,7 +11,7 @@ namespace FastLua.SyntaxTree
     {
         public NodeRef<FunctionDefinitionSyntaxNode> ParentFunction { get; set; }
         public List<StatementSyntaxNode> Statements { get; } = new();
-        public List<NodeRef<LocalVariableDefinitionSyntaxNode>> LocalVariables { get; } = new();
+        public List<NodeRef<LocalVariableDefinitionSyntaxNode>> LocalVariables { get; } = new(); //Point to local statement.
         public List<UpValueListSyntaxNode> UpValueLists { get; } = new();
 
         internal override void Serialize(BinaryWriter bw)

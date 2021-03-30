@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FastLua.Parser;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -50,6 +51,13 @@ namespace FastLua.SyntaxTree
         public string StringValue
         {
             get => SpecificationType.LuaType == SpecificationLuaType.String ? _stringValue : throw new InvalidOperationException();
+            set
+            {
+                SpecificationType = new() { LuaType = SpecificationLuaType.String };
+                _stringValue = value;
+                _sIntValue = LuaParserHelper.ParseInteger(value);
+                _sDoubleValue = LuaParserHelper.ParseNumber(value);
+            }
         }
 
         public void SetStringValue(string str, long? si, double? sd)
@@ -94,6 +102,7 @@ namespace FastLua.SyntaxTree
                 break;
             case SpecificationLuaType.Double:
                 SerializeV(bw, _doubleValue);
+                SerializeV(bw, _int64Value);
                 break;
             case SpecificationLuaType.String:
                 bw.Write(_stringValue);
@@ -126,6 +135,7 @@ namespace FastLua.SyntaxTree
                 break;
             case SpecificationLuaType.Double:
                 _doubleValue = br.ReadDouble();
+                _int64Value = br.ReadInt64();
                 break;
             case SpecificationLuaType.String:
                 _stringValue = br.ReadString();

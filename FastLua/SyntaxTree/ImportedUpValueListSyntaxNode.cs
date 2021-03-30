@@ -9,28 +9,25 @@ namespace FastLua.SyntaxTree
 {
     public sealed class ImportedUpValueListSyntaxNode : SyntaxNode
     {
-        public int Index { get; set; }
-        public int ExportId { get; set; }
-        public UpValueListSyntaxNode UpValueList { get; set; }
-        public List<NodeRef<LocalVariableDefinitionSyntaxNode>> Variables { get; } = new();
+        public int ImportId { get; set; } //Id in function's import list. Used to make the closure obj.
+        public UpValueListSyntaxNode UpValueList { get; set; } //Only used when this list is also exported.
+        public List<LocalVariableDefinitionSyntaxNode> Variables { get; } = new();
 
         internal override void Serialize(BinaryWriter bw)
         {
             SerializeHeader<ImportedUpValueListSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeV(bw, Index);
-            SerializeV(bw, ExportId);
+            SerializeV(bw, ImportId);
             SerializeO(bw, UpValueList);
-            SerializeRL(bw, Variables);
+            SerializeL(bw, Variables);
         }
 
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            Index = DeserializeV<int>(br);
-            ExportId = DeserializeV<int>(br);
+            ImportId = DeserializeV<int>(br);
             UpValueList = DeserializeO<UpValueListSyntaxNode>(br);
-            DeserializeRL(br, Variables);
+            DeserializeL(br, Variables);
         }
 
         public override void Traverse(ISyntaxTreeVisitor visitor)
@@ -39,16 +36,8 @@ namespace FastLua.SyntaxTree
             visitor.Start(this);
             base.Traverse(visitor);
             UpValueList.Traverse(visitor);
+            Variables.Traverse(visitor);
             visitor.Finish(this);
-        }
-
-        internal override void SetupReference(Dictionary<ulong, SyntaxNode> dict)
-        {
-            base.SetupReference(dict);
-            foreach (var v in Variables)
-            {
-                v?.Resolve(dict);
-            }
         }
     }
 }

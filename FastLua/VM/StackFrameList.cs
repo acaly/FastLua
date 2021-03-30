@@ -13,6 +13,12 @@ namespace FastLua.VM
         private readonly T[] _data;
         private int _count;
 
+        public StackFrameList(int capacity)
+        {
+            _data = new T[capacity];
+            _count = 0;
+        }
+
         private int GetIndex(ref T val)
         {
             return (int)Unsafe.ByteOffset(ref _data[0], ref val) / _size;

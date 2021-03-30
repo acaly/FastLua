@@ -9,7 +9,7 @@ namespace FastLua.SyntaxTree
 {
     public sealed class NumericForBlockSyntaxNode : LoopBlockSyntaxNode
     {
-        public LocalVariableDefinitionSyntaxNode Variable { get; set; }
+        public NodeRef<LocalVariableDefinitionSyntaxNode> Variable { get; set; }
         public ExpressionSyntaxNode From { get; set; }
         public ExpressionSyntaxNode To { get; set; }
         public ExpressionSyntaxNode Step { get; set; } //Can be null.
@@ -18,7 +18,7 @@ namespace FastLua.SyntaxTree
         {
             SerializeHeader<NumericForBlockSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeO(bw, Variable);
+            SerializeR(bw, Variable);
             SerializeO(bw, From);
             SerializeO(bw, To);
             SerializeO(bw, Step);
@@ -27,7 +27,7 @@ namespace FastLua.SyntaxTree
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            Variable = DeserializeO<LocalVariableDefinitionSyntaxNode>(br);
+            Variable = DeserializeR<LocalVariableDefinitionSyntaxNode>(br);
             From = DeserializeO<ExpressionSyntaxNode>(br);
             To = DeserializeO<ExpressionSyntaxNode>(br);
             Step = DeserializeO<ExpressionSyntaxNode>(br);
@@ -38,11 +38,16 @@ namespace FastLua.SyntaxTree
             visitor.Visit(this);
             visitor.Start(this);
             base.Traverse(visitor);
-            Variable.Traverse(visitor);
             From.Traverse(visitor);
             To.Traverse(visitor);
             Step?.Traverse(visitor);
             visitor.Finish(this);
+        }
+
+        internal override void SetupReference(Dictionary<ulong, SyntaxNode> dict)
+        {
+            base.SetupReference(dict);
+            Variable?.Resolve(dict);
         }
     }
 }

@@ -7,9 +7,11 @@ using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
 {
+    //This is the node at the export side.
+    //Import side use ImportedUpValueListSyntaxNode.
+    //Note that imported list can be directly exported, in which case there are both.
     public sealed class UpValueListSyntaxNode : SyntaxNode
     {
-        public int Id { get; set; } //Id in function, used to export to children functions.
         public NodeRef<BlockSyntaxNode> ParentBlock { get; set; } //Null for imported lists.
         public List<NodeRef<LocalVariableDefinitionSyntaxNode>> Variables { get; } = new();
         public List<NodeRef<ExternalFunctionReferenceSyntaxNode>> ReferencedBy { get; } = new();
@@ -18,7 +20,6 @@ namespace FastLua.SyntaxTree
         {
             SerializeHeader<UpValueListSyntaxNode>(bw);
             base.Serialize(bw);
-            SerializeV(bw, Id);
             SerializeR(bw, ParentBlock);
             SerializeRL(bw, Variables);
             SerializeRL(bw, ReferencedBy);
@@ -27,7 +28,6 @@ namespace FastLua.SyntaxTree
         internal override void Deserialize(BinaryReader br)
         {
             base.Deserialize(br);
-            Id = DeserializeV<int>(br);
             ParentBlock = DeserializeR<BlockSyntaxNode>(br);
             DeserializeRL(br, Variables);
             DeserializeRL(br, ReferencedBy);
