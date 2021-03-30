@@ -12,7 +12,7 @@ namespace FastLua.Parser
         {
         }
 
-        private static LuaRawTokenType GetCharType(char c)
+        public static LuaRawTokenType GetCharType(char c)
         {
             char cc = (char)c;
             if (char.IsWhiteSpace(cc) || char.IsSeparator(cc) || char.IsControl(cc))

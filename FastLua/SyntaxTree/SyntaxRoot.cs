@@ -71,12 +71,13 @@ namespace FastLua.SyntaxTree
 
         public static SyntaxRoot Read(BinaryReader br)
         {
-            br.ReadInt32(); //Skip type id.
-            var ret = DeserializeO<SyntaxRoot>(br);
+            var ret = new SyntaxRoot();
+            br.ReadBoolean();
+            ret.Deserialize(br);
 
             var dict = new Dictionary<ulong, SyntaxNode>();
-            ret.RootFunction.Traverse(new SimpleSyntaxTreeVisitor(s => dict.Add(s.DeserializeNodeId, s)));
-            ret.RootFunction.Traverse(new SimpleSyntaxTreeVisitor(s => s.SetupReference(dict)));
+            ret.Traverse(new SimpleSyntaxTreeVisitor(s => dict.Add(s.DeserializeNodeId, s)));
+            ret.Traverse(new SimpleSyntaxTreeVisitor(s => s.SetupReference(dict)));
 
             return ret;
         }

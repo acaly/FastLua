@@ -65,6 +65,7 @@ namespace FastLua.Parser
         {
             return t.Type switch
             {
+                LuaTokenType.EOS => true,
                 LuaTokenType.Else => true,
                 LuaTokenType.Elseif => true,
                 LuaTokenType.End => true,
@@ -81,6 +82,7 @@ namespace FastLua.Parser
                 if (t.Type == LuaTokenType.Return)
                 {
                     RetStat(ref t);
+                    return;
                 }
                 Statement(ref t);
             }
@@ -233,18 +235,18 @@ namespace FastLua.Parser
         private void LocalStat(ref Token t)
         {
             Next(ref t);
-            var assignment = new AssignmentStatementSyntaxNode();
+            var assignment = new LocalStatementSyntaxNode();
             do
             {
                 Check(ref t, LuaTokenType.Name);
-                var v = _output.CurrentBlock.NewVariable(t.Content);
-                v.Variable.Target.Declaration = new(assignment);
+                var v = _output.CurrentBlock.NewVariable(t.Content, assignment);
+                v.Declaration = new(assignment);
                 assignment.Variables.Add(v);
                 Next(ref t);
             } while (TestAndNext(ref t, (LuaTokenType)','));
             if (TestAndNext(ref t, (LuaTokenType)'='))
             {
-                assignment.Values = ExprList(ref t);
+                assignment.ExpressionList = ExprList(ref t);
             }
             _output.CurrentBlock.Add(assignment);
         }
@@ -254,17 +256,16 @@ namespace FastLua.Parser
             Next(ref t); //local
             Next(ref t); //function
             Check(ref t, LuaTokenType.Name);
-            var v = _output.CurrentBlock.NewVariable(t.Content);
+            var assignment = new LocalStatementSyntaxNode();
+            var v = _output.CurrentBlock.NewVariable(t.Content, assignment);
             Next(ref t);
-            var assignment = new AssignmentStatementSyntaxNode()
+            assignment.Variables.Add(v);
+            assignment.ExpressionList = new ExpressionListSyntaxNode()
             {
-                Variables = { v },
-                Values = new ExpressionListSyntaxNode()
-                {
-                    Expressions = { Body(ref t, hasSelf: false) },
-                },
+                Expressions = { Body(ref t, hasSelf: false) },
             };
-            v.Variable.Target.Declaration = new(assignment);
+            Next(ref t);
+            v.Declaration = new(assignment);
             _output.CurrentBlock.Add(assignment);
         }
 
@@ -332,71 +333,62 @@ namespace FastLua.Parser
 
         private void ForStat(ref Token t)
         {
-            Next(ref t);
-            var auxBlock = _output.CurrentBlock.OpenAuxBlock();
+            Next(ref t); //for
+            //var auxBlock = _output.CurrentBlock.OpenAuxBlock();
             Check(ref t, LuaTokenType.Name);
-            var v1 = _output.CurrentBlock.NewVariable(t.Content); //Note that the Declaration is set later.
-            Next(ref t);
-            if (TestAndNext(ref t, (LuaTokenType)'='))
+            if (_input.TryPeek(1, out var nextToken) && nextToken.Type == (LuaTokenType)'=')
             {
-                ForNum(ref t, v1);
+                ForNum(ref t);
             }
             else
             {
-                ForList(ref t, v1);
+                ForList(ref t);
             }
-            _output.CurrentBlock.Close(auxBlock);
         }
 
-        private void ForList(ref Token t, VariableSyntaxNode v1)
+        private void ForList(ref Token t)
         {
-            static NodeRef<LocalVariableDefinitionSyntaxNode> GetVarRef(VariableSyntaxNode v)
-            {
-                return ((NamedVariableSyntaxNode)v).Variable;
-            }
-            var variables = new List<NodeRef<LocalVariableDefinitionSyntaxNode>>() { GetVarRef(v1) };
-            while (TestAndNext(ref t, (LuaTokenType)','))
+            var forBlock = _output.CurrentBlock.OpenGenericForBlock();
+            do
             {
                 Check(ref t, LuaTokenType.Name);
-                variables.Add(GetVarRef(_output.CurrentBlock.NewVariable(t.Content)));
+                var v = _output.CurrentBlock.NewVariable(t.Content, forBlock);
+                v.Declaration = new(forBlock);
+                forBlock.LoopVariables.Add(v);
                 Next(ref t);
             }
+            while (TestAndNext(ref t, (LuaTokenType)','));
             CheckAndNext(ref t, LuaTokenType.In);
-            var exprList = ExprList(ref t);
-            var block = _output.CurrentBlock.OpenGenericForBlock();
-            foreach (var vv in variables)
-            {
-                block.LoopVariables.Add(vv);
-                vv.Target.Declaration = new(block);
-            }
-            block.ExpressionList = exprList;
+            forBlock.ExpressionList = ExprList(ref t);
+            var auxBlock = _output.CurrentBlock.OpenAuxBlock();
             CheckAndNext(ref t, LuaTokenType.Do);
             StatList(ref t);
-            _output.CurrentBlock.Close(block);
             CheckAndNext(ref t, LuaTokenType.End);
+            _output.CurrentBlock.Close(auxBlock);
+            _output.CurrentBlock.Close(forBlock);
         }
 
-        private void ForNum(ref Token t, VariableSyntaxNode v1)
+        private void ForNum(ref Token t)
         {
-            //'=' has been consumed.
-            var e1 = Expr(ref t);
+            var forBlock = _output.CurrentBlock.OpenNumericForBlock();
+            var v = _output.CurrentBlock.NewVariable(t.Content, forBlock); //This is a name, confirmed by ForStat.
+            v.Declaration = new(forBlock);
+            forBlock.Variable = v;
+            Next(ref t);
+            Next(ref t); //Skip the '=', confirmed by ForStat.
+            forBlock.From = Expr(ref t);
             CheckAndNext(ref t, (LuaTokenType)',');
-            var e2 = Expr(ref t);
-            ExpressionSyntaxNode e3 = null;
+            forBlock.To = Expr(ref t);
             if (TestAndNext(ref t, (LuaTokenType)','))
             {
-                e3 = Expr(ref t);
+                forBlock.Step = Expr(ref t);
             }
             CheckAndNext(ref t, LuaTokenType.Do);
-            var block = _output.CurrentBlock.OpenNumericForBlock();
-            block.Variable = ((NamedVariableSyntaxNode)v1).Variable;
-            block.Variable.Target.Declaration = new(block);
-            block.From = e1;
-            block.To = e2;
-            block.Step = e3;
+            var auxBlock = _output.CurrentBlock.OpenAuxBlock();
             StatList(ref t);
-            _output.CurrentBlock.Close(block);
             CheckAndNext(ref t, LuaTokenType.End);
+            _output.CurrentBlock.Close(auxBlock);
+            _output.CurrentBlock.Close(forBlock);
         }
 
         private void WhileStat(ref Token t)
@@ -541,6 +533,7 @@ namespace FastLua.Parser
                     Right = rhs,
                     Operator = bn,
                 };
+                bn = ConvBinOpr(t.Type);
             }
             return e;
         }

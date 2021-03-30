@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using FastLua.Diagnostics;
 using FastLua.Parser;
 using FastLua.SyntaxTree;
 using System;
@@ -22,13 +23,14 @@ namespace FastLuaExample
     end
 end
 ", 1));
+        private static readonly string _code2 = @"local count = 0 local function onclick() count = count + 1 end";
 
         public static void Main()
         {
-            var reader = new StringReader(_code);
+            var codeReader = new StringReader(_code);
             var rawTokens = new LuaRawTokenizer();
             var luaTokens = new LuaTokenizer();
-            rawTokens.Reset(reader);
+            rawTokens.Reset(codeReader);
             luaTokens.Reset(rawTokens);
 
             var parser = new LuaParser();
@@ -39,6 +41,20 @@ end
             parser.Parse();
 
             var ast = builder.Finish();
+            ast.Dump(Console.Out);
+
+            Console.WriteLine();
+            Console.WriteLine("===============");
+            Console.WriteLine();
+
+            var stream = new MemoryStream();
+            var writer = new BinaryWriter(stream);
+            ast.Write(writer);
+
+            stream.Seek(0, SeekOrigin.Begin);
+            var reader = new BinaryReader(stream);
+            var newTree = SyntaxRoot.Read(reader);
+            newTree.Dump(Console.Out);
         }
 
         public static void Tokenizer()

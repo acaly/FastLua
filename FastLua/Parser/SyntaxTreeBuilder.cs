@@ -464,21 +464,15 @@ namespace FastLua.Parser
                 Add(s);
             }
 
-            //Note that caller must assign the Declaration of the definition later.
-            //We don't set it here because `for` statements might need to create definition
-            //before creating the statement.
-            public NamedVariableSyntaxNode NewVariable(ReadOnlySpan<char> name)
+            public LocalVariableDefinitionSyntaxNode NewVariable(ReadOnlySpan<char> name, StatementSyntaxNode decl)
             {
                 var def = new LocalVariableDefinitionSyntaxNode()
                 {
                     Kind = LocalVariableKind.Local,
-                    Declaration = null, //Set by caller later.
+                    Declaration = new(decl),
                 };
                 _declaredLocals.Add(name.ToString(), new(def));
-                return new NamedVariableSyntaxNode()
-                {
-                    Variable = new(def),
-                };
+                return def;
             }
 
             internal void AddArgument(string name, LocalVariableDefinitionSyntaxNode definition)
@@ -628,6 +622,7 @@ namespace FastLua.Parser
             _functionStack.RemoveAt(_functionStack.Count - 1);
             Debug.Assert(f.Node == func);
             f.Close();
+            _closedFunctions.Add(func);
             return f.Closure;
         }
     }

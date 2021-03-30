@@ -65,6 +65,7 @@ namespace FastLua.SyntaxTree
             base.Traverse(visitor);
             ParentExternalFunction?.Traverse(visitor);
             ChildrenFunctions.Traverse(visitor);
+            ImportedUpValueLists.Traverse(visitor);
             Parameters.Traverse(visitor);
             visitor.Finish(this);
         }

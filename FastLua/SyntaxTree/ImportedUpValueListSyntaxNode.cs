@@ -35,7 +35,7 @@ namespace FastLua.SyntaxTree
             visitor.Visit(this);
             visitor.Start(this);
             base.Traverse(visitor);
-            UpValueList.Traverse(visitor);
+            UpValueList?.Traverse(visitor);
             Variables.Traverse(visitor);
             visitor.Finish(this);
         }

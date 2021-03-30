@@ -42,7 +42,7 @@ namespace FastLua.SyntaxTree
         internal override void SetupReference(Dictionary<ulong, SyntaxNode> dict)
         {
             base.SetupReference(dict);
-            ParentFunction.Resolve(dict);
+            ParentFunction?.Resolve(dict);
             foreach (var v in LocalVariables)
             {
                 v?.Resolve(dict);
