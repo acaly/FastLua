@@ -42,7 +42,7 @@ end
             parser.Parse();
 
             var ast = builder.Finish();
-            ast.Dump(Console.Out);
+            //ast.Dump(Console.Out);
 
             Console.WriteLine();
             Console.WriteLine("===============");
@@ -55,7 +55,7 @@ end
             stream.Seek(0, SeekOrigin.Begin);
             var reader = new BinaryReader(stream);
             var newTree = SyntaxRoot.Read(reader);
-            newTree.Dump(Console.Out);
+            //newTree.Dump(Console.Out);
         }
 
         public static void Tokenizer()

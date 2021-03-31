@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31019.35
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLua", "FastLua\FastLua.csproj", "{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLua", "FastLua\FastLua.csproj", "{C7E5093E-96FD-4EAB-8F19-82BD77EB491A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLuaExample", "FastLuaExample\FastLuaExample.csproj", "{C6892055-5857-4F48-83BC-B3F4B2724672}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLuaExample", "FastLuaExample\FastLuaExample.csproj", "{C6892055-5857-4F48-83BC-B3F4B2724672}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InlineSwitch", "InlineSwitch\InlineSwitch.csproj", "{2C9BEBC5-19D5-4518-8FB0-7265EB68AF01}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C9BEBC5-19D5-4518-8FB0-7265EB68AF01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C9BEBC5-19D5-4518-8FB0-7265EB68AF01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C9BEBC5-19D5-4518-8FB0-7265EB68AF01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C9BEBC5-19D5-4518-8FB0-7265EB68AF01}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
