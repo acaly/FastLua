@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,9 +20,20 @@ namespace FastLua.VM
             _count = 0;
         }
 
-        private int GetIndex(ref T val)
+        public void CopyTo(StackFrameList<T> newStack)
+        {
+            Debug.Assert(newStack._data.Length >= _data.Length);
+            _data.CopyTo(newStack._data, 0);
+        }
+
+        public int GetIndex(ref T val)
         {
             return (int)Unsafe.ByteOffset(ref _data[0], ref val) / _size;
+        }
+
+        public Span<T> FromIndex(int index, int length)
+        {
+            return _data.AsSpan(index, length);
         }
 
         public Span<T> Push(int newSize)

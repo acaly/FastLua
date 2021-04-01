@@ -408,6 +408,7 @@ namespace FastLua.VM
                 break;
             }
             case Opcodes.CALL:
+            case Opcodes.CALLC:
             {
                 int a = (int)((ii >> 16) & 0xFF);
                 int b = (int)((ii >> 8) & 0xFF);
@@ -425,9 +426,11 @@ namespace FastLua.VM
                     //Setup new stack frame and call.
                     var proto = lc.Proto;
 
+                    var onSameSegment = stack.MetaData.Func.SigDesc[c].SigType.Vararg.HasValue;
+
                     //This allocates the new frame's stack, which may overlap with the current (to pass args)
                     //TODO seems a lot of work here in Allocate. Should try to simplify.
-                    var newStack = thread.Stack.Allocate(ref stack, proto.NumStackSize, proto.ObjStackSize);
+                    var newStack = thread.Stack.Allocate(ref stack, proto.NumStackSize, proto.ObjStackSize, onSameSegment);
 
                     //Adjust argument list according to the requirement of the callee.
                     //Also remove vararg into separate stack.
@@ -540,21 +543,44 @@ namespace FastLua.VM
             }
             case Opcodes.RETN:
             {
-                unsafe
+                Span<object> retObj;
+                Span<double> retNum;
+                if (stack.Last.Length == 0)
                 {
-                    //TODO This may cause overflow on last stack.
-                    ref var lastStack = ref StackFrame.GetLast(ref stack.Last[0]);
-                    var (o, v) = lastStack.ReplaceSigBlock(ref stack.MetaData);
-                    var ol = stack.MetaData.SigTotalOLength;
-                    var vl = stack.MetaData.SigTotalVLength;
-                    for (int i = 0; i < ol; ++i)
+                    //This is the first frame. Simply copy to the start of this frame.
+                    retObj = stack.ObjectFrame;
+                    retNum = stack.NumberFrame;
+                }
+                else
+                {
+                    unsafe
                     {
-                        lastStack.ObjectFrame[o + i] = stack.ObjectFrame[stack.MetaData.SigObjectOffset];
+                        ref var lastStack = ref StackFrame.GetLast(ref stack.Last[0]);
+                        lastStack.ReplaceSigBlock(ref stack.MetaData);
+
+                        if (stack.Last[0] == stack.Head)
+                        {
+                            //The last one shares the same stack segment. Copy to this frame's start.
+                            retObj = stack.ObjectFrame;
+                            retNum = stack.NumberFrame;
+                        }
+                        else
+                        {
+                            //The last one is on a previous stack. Find the location using last frame's data.
+                            retObj = lastStack.ObjectFrame[lastStack.MetaData.SigObjectOffset..];
+                            retNum = lastStack.NumberFrame[lastStack.MetaData.SigNumberOffset..];
+                        }
                     }
-                    for (int i = 0; i < vl; ++i)
-                    {
-                        lastStack.NumberFrame[v + i] = stack.NumberFrame[stack.MetaData.SigNumberOffset];
-                    }
+                }
+                var ol = stack.MetaData.SigTotalOLength;
+                var vl = stack.MetaData.SigTotalVLength;
+                for (int i = 0; i < ol; ++i)
+                {
+                    retObj[i] = stack.ObjectFrame[stack.MetaData.SigObjectOffset];
+                }
+                for (int i = 0; i < vl; ++i)
+                {
+                    retNum[i] = stack.NumberFrame[stack.MetaData.SigNumberOffset];
                 }
                 return;
             }

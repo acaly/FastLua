@@ -83,7 +83,8 @@ end
 ";
         public static void Main()
         {
-            var (sig0, sig0var) = StackSignature.CreateUnspecialized(0);
+            var (sig0, _) = StackSignature.CreateUnspecialized(0);
+            var (sig1, _) = StackSignature.CreateUnspecialized(1);
             var proto = new Proto
             {
                 ChildFunctions = Array.Empty<Proto>(),
@@ -92,16 +93,11 @@ end
                     TypedValue.MakeDouble(1),
                     TypedValue.MakeDouble(2),
                 },
-                SigDesc = Array.Empty<SignatureDesc>(),
-                ParameterSig = new SignatureDesc
+                SigDesc = new SignatureDesc[]
                 {
-                    SigType = sig0,
-                    SigTypeId = sig0.GlobalId,
-                    HasVO = false,
-                    HasVV = false,
-                    SigFOLength = 0,
-                    SigFVLength = 0,
+                    sig1.GetDesc(),
                 },
+                ParameterSig = sig0.GetDesc(),
                 NumStackSize = 100,
                 ObjStackSize = 100,
                 LocalRegionOffsetO = 0,
@@ -114,7 +110,8 @@ end
                     (uint)(Opcodes.K) << 24 | 10 << 16 | 0 << 8 | 0,
                     (uint)(Opcodes.K) << 24 | 11 << 16 | 1 << 8 | 0,
                     (uint)(Opcodes.ADD) << 24 | 12 << 16 | 10 << 8 | 11,
-                    (uint)(Opcodes.RET0) << 24,
+                    (uint)(Opcodes.SIG) << 24 | 0 << 16 | 12 << 8 | 12,
+                    (uint)(Opcodes.RETN) << 24,
                 },
             };
             var closure = new LClosure

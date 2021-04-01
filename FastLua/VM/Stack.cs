@@ -22,6 +22,7 @@ namespace FastLua.VM
         public Span<object> ObjectFrame;
 
         public StackMetaData MetaData;
+        public bool OnSameSegment;
 
         private static ref nint GetLastImpl(ref nint x) => ref x;
         public static readonly delegate*<ref nint, ref StackFrame> GetLast =
@@ -114,12 +115,11 @@ namespace FastLua.VM
 
         //Used by callee to add return values. This list will be checked and adjusted
         //again using TryAdjustSigBlockRight.
-        public (int o, int v) ReplaceSigBlock(ref StackMetaData meta)
+        public void ReplaceSigBlock(ref StackMetaData meta)
         {
             MetaData.SigDesc = meta.SigDesc;
             MetaData.SigVVLength = meta.SigVVLength;
             MetaData.SigVOLength = meta.SigVOLength;
-            return (MetaData.SigObjectOffset, MetaData.SigNumberOffset);
         }
 
         //Adjust sig block. This operation handles sig block generated inside the same function
@@ -341,10 +341,11 @@ namespace FastLua.VM
             };
         }
 
-        public StackFrame Allocate(ref StackFrame lastFrame, int numSize, int objSize)
+        public StackFrame Allocate(ref StackFrame lastFrame, int numSize, int objSize, bool onSameSeg)
         {
             Debug.Assert(numSize < Options.MaxSingleFunctionStackSize);
             Debug.Assert(objSize < Options.MaxSingleFunctionStackSize);
+            Debug.Assert(_currentHead == (int)lastFrame.Head);
 
             var s = _segments[(int)lastFrame.Head];
 
@@ -356,42 +357,120 @@ namespace FastLua.VM
 
             if (!s.NumberStack.CheckSpace(numSize) || !s.ObjectStack.CheckSpace(objSize))
             {
-                if (++_currentHead == _segments.Count)
+                if (onSameSeg)
                 {
-                    _segments.Add(new()
-                    {
-                        NumberStack = new(Options.StackSegmentSize),
-                        ObjectStack = new(Options.StackSegmentSize),
-                    });
-                }
-                s = _segments[_currentHead];
-                var nframe = s.NumberStack.Push(numSize + argNSize); //TODO this may overflow
-                var oframe = s.ObjectStack.Push(objSize + argOSize);
+                    //The most difficult path: new frame needs to be on the same segment, but current
+                    //segment does not have enough space. Need to relocate all existing frames
+                    //that requires OnSameSegment.
+                    //This should be very rare for any normal code.
 
-                //Copy args from old frame.
-                argN.CopyTo(nframe);
-                argO.CopyTo(oframe);
-                return new StackFrame
+                    //Calculate total size required for all frames.
+                    //We assume that each frame actually only requires the space up to its sig offset.
+                    //This is ensured by the current calling convension.
+                    int totalNewNumSize = numSize + lastFrame.MetaData.SigNumberOffset;
+                    int totalNewObjSize = objSize + lastFrame.MetaData.SigObjectOffset;
+                    Span<nint> iter = lastFrame.Last;
+                    int numOffsetOnOldSeg = s.NumberStack.GetIndex(ref lastFrame.NumberFrame[0]);
+                    int objOffsetOnOldSeg = s.ObjectStack.GetIndex(ref lastFrame.ObjectFrame[0]);
+                    if (lastFrame.OnSameSegment)
+                    {
+                        while (true)
+                        {
+                            unsafe
+                            {
+                                ref var f = ref StackFrame.GetLast(ref iter[0]);
+                                Debug.Assert((int)f.Head == _currentHead);
+                                totalNewNumSize += f.MetaData.SigNumberOffset;
+                                totalNewObjSize += f.MetaData.SigObjectOffset;
+                                iter = f.Last;
+                                if (!f.OnSameSegment || iter.Length == 0)
+                                {
+                                    numOffsetOnOldSeg = s.NumberStack.GetIndex(ref f.NumberFrame[0]);
+                                    objOffsetOnOldSeg = s.ObjectStack.GetIndex(ref f.ObjectFrame[0]);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    totalNewNumSize = Math.Max(totalNewNumSize + Options.MaxSingleFunctionStackSize, Options.StackSegmentSize);
+                    totalNewObjSize = Math.Max(totalNewNumSize + Options.MaxSingleFunctionStackSize, Options.StackSegmentSize);
+
+                    //Allocate new segment.
+                    var newSegment = new StackSegment
+                    {
+                        NumberStack = new(totalNewNumSize),
+                        ObjectStack = new(totalNewObjSize),
+                    };
+                    s.NumberStack.CopyTo(newSegment.NumberStack);
+                    s.ObjectStack.CopyTo(newSegment.ObjectStack);
+
+                    //Iterate and fix all frames.
+                    iter = lastFrame.Last;
+                    if (lastFrame.OnSameSegment)
+                    {
+                        while (iter.Length > 0)
+                        {
+                            unsafe
+                            {
+                                ref var f = ref StackFrame.GetLast(ref iter[0]);
+                                var newObjIndex = s.ObjectStack.GetIndex(ref f.ObjectFrame[0]) - objOffsetOnOldSeg;
+                                f.ObjectFrame = newSegment.ObjectStack.FromIndex(newObjIndex, f.ObjectFrame.Length);
+                                var newNumIndex = s.NumberStack.GetIndex(ref f.NumberFrame[0]) - numOffsetOnOldSeg;
+                                f.NumberFrame = newSegment.NumberStack.FromIndex(newNumIndex, f.NumberFrame.Length);
+                                if (!f.OnSameSegment) break;
+                                iter = f.Last;
+                            }
+                        }
+                    }
+                    newSegment.NumberStack.Reset(lastFrame.NumberFrame);
+                    newSegment.ObjectStack.Reset(lastFrame.ObjectFrame);
+
+                    s = newSegment;
+                    argN = lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset, argNSize);
+                    argO = lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset, argOSize);
+                    //Fall through and allocate the new frame.
+                }
+                else
                 {
-                    Head = _currentHead,
-                    Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                    NumberFrame = nframe,
-                    ObjectFrame = oframe,
-                };
+                    //Allocate new frame on a new segment.
+                    if (++_currentHead == _segments.Count)
+                    {
+                        _segments.Add(new()
+                        {
+                            NumberStack = new(Options.StackSegmentSize),
+                            ObjectStack = new(Options.StackSegmentSize),
+                        });
+                    }
+                    s = _segments[_currentHead];
+                    var nframe = s.NumberStack.Push(numSize + argNSize); //TODO this may overflow
+                    var oframe = s.ObjectStack.Push(objSize + argOSize);
+
+                    //Copy args from old frame.
+                    argN.CopyTo(nframe);
+                    argO.CopyTo(oframe);
+                    return new StackFrame
+                    {
+                        Head = _currentHead,
+                        Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
+                        NumberFrame = nframe,
+                        ObjectFrame = oframe,
+                        OnSameSegment = onSameSeg,
+                    };
+                }
             }
-            else
+
+            //Enough space. Just grow.
+            //Don't need to copy args. Use extend to allocate frame after the current one.
+            s.NumberStack.TryExtend(ref argN, argNSize + numSize);
+            s.ObjectStack.TryExtend(ref argO, argOSize + objSize);
+            return new StackFrame
             {
-                //Don't need to copy args. Use extend to allocate frame after the current one.
-                s.NumberStack.TryExtend(ref argN, argNSize + numSize);
-                s.ObjectStack.TryExtend(ref argO, argOSize + objSize);
-                return new StackFrame
-                {
-                    Head = _currentHead,
-                    Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                    NumberFrame = argN,
-                    ObjectFrame = argO,
-                };
-            }
+                Head = _currentHead,
+                Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
+                NumberFrame = argN,
+                ObjectFrame = argO,
+                OnSameSegment = onSameSeg,
+            };
         }
 
         public void Deallocate(ref StackFrame lastFrame)
