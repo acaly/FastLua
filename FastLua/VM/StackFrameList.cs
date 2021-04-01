@@ -24,16 +24,15 @@ namespace FastLua.VM
             return (int)Unsafe.ByteOffset(ref _data[0], ref val) / _size;
         }
 
-        public bool TryPush(int size, out Span<T> span)
+        public Span<T> Push(int newSize)
         {
-            if (!CheckSpace(_count, size))
+            if (!CheckSpace(_count, newSize))
             {
-                span = default;
-                return false;
+                throw new InvalidOperationException();
             }
-            span = MemoryMarshal.CreateSpan(ref _data[_count], size);
-            _count += size;
-            return true;
+            var span = MemoryMarshal.CreateSpan(ref _data[_count], newSize);
+            _count += newSize;
+            return span;
         }
 
         public void Pop(Span<T> span)
@@ -43,6 +42,21 @@ namespace FastLua.VM
                 throw new InvalidOperationException("Stack order check failed.");
             }
             _count -= span.Length;
+        }
+
+        public void Clear()
+        {
+            _count = 0;
+        }
+
+        public void Reset(Span<T> lastSpan)
+        {
+            _count = GetIndex(ref lastSpan[0]) + lastSpan.Length;
+        }
+
+        public bool CheckSpace(int size)
+        {
+            return CheckSpace(_count, size);
         }
 
         private bool CheckSpace(int start, int newSize)

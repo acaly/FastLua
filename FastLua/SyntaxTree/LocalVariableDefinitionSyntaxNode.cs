@@ -29,7 +29,6 @@ namespace FastLua.SyntaxTree
         public LocalVariableKind Kind { get; set; }
         public NodeRef<StatementSyntaxNode> Declaration { get; set; } //Only for local.
         public NodeRef<ImportedUpValueListSyntaxNode> ImportUpValueList { get; set; } //Only for upvalue.
-        //TODO consider adding an index for parameter
 
         public SpecializationType Specialization { get; set; }
         public LocalVariableEscape Escape { get; set; }

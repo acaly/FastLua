@@ -13,7 +13,7 @@ namespace FastLua.SyntaxTree
 
         Nil,
         Bool,
-        Int64,
+        Int32,
         Double,
         String,
         CLRFunction,

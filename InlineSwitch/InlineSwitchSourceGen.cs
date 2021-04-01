@@ -47,8 +47,6 @@ namespace InlineSwitch
                     var attrType = model.GetTypeInfo(attr).Type;
                     if (attrType.GetFullName() == "FastLua.VM.InlineSwitchAttribute")
                     {
-                        context.ReportDiagnostic(Diagnostic.Create(TestDiagnostic, method.GetLocation(),
-                            "This method is recognized."));
                         Generate(context, model, method, root);
                     }
                 }
@@ -75,8 +73,12 @@ namespace InlineSwitch
             default: accessModifier = ""; break;
             };
 
+            string staticModifier = methodSymbol.IsStatic ? "static " : "";
+
             var returnType = methodSymbol.ReturnType.ToDisplayString();
-            var parameters = methodSymbol.Parameters.Select(p => $"{p.Type.ToDisplayString()} {p.Name}");
+            string MakeRef(RefKind k) => k == RefKind.Ref ? "ref " : k == RefKind.Out ? "out " :
+                k == RefKind.RefReadOnly ? "ref readonly " : "";
+            var parameters = methodSymbol.Parameters.Select(p => $"{MakeRef(p.RefKind)}{p.Type.ToDisplayString()} {p.Name}");
             var transformedName = methodSymbol.Name.Substring(0, methodSymbol.Name.Length - 9);
 
             //Copy using directives.
@@ -99,7 +101,7 @@ namespace InlineSwitch
             builder.AppendLine(@"{");
             builder.AppendLine($"    partial class {declType.Name}");
             builder.AppendLine(@"    {");
-            builder.AppendLine($"        {accessModifier}partial {returnType} {transformedName}({string.Join(", ", parameters)})");
+            builder.AppendLine($"        {accessModifier}{staticModifier}partial {returnType} {transformedName}({string.Join(", ", parameters)})");
             builder.AppendLine(@"        {");
 
             builder.AppendLine(replaced.ToFullString());
@@ -113,12 +115,19 @@ namespace InlineSwitch
 
         private static SyntaxNode MakeNewSwitch(GeneratorExecutionContext context, SwitchStatementSyntax old, ITypeSymbol impl)
         {
-            return SyntaxFactory.SwitchStatement(old.Expression).AddSections(MakeSections(context, impl).ToArray());
+            try
+            {
+                return SyntaxFactory.SwitchStatement(old.Expression).AddSections(MakeSections(context, impl).ToArray());
+            }
+            catch (Exception e)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(TestDiagnostic, null, "Err " + e.ToString()));
+                return old;
+            }
         }
 
         private static IEnumerable<SwitchSectionSyntax> MakeSections(GeneratorExecutionContext context, ITypeSymbol impl)
         {
-            context.ReportDiagnostic(Diagnostic.Create(TestDiagnostic, null, "Test " + impl.GetFullName()));
             foreach (var method in impl.GetMembers().OfType<IMethodSymbol>())
             {
                 var attr = method.GetAttributes()
@@ -126,13 +135,11 @@ namespace InlineSwitch
                 if (attr is null) continue;
 
                 var body = (MethodDeclarationSyntax)method.DeclaringSyntaxReferences.Single().GetSyntax();
-                var replacedSwitch = body.DescendantNodes().OfType<SwitchStatementSyntax>().Single();
+                var replacedSwitch = body.DescendantNodes().OfType<SwitchStatementSyntax>().OrderBy(s => s.Span.Start).First();
                 foreach (var section in replacedSwitch.Sections)
                 {
                     yield return section;
                 }
-
-                context.ReportDiagnostic(Diagnostic.Create(TestDiagnostic, body.GetLocation(), "impl: " + method.Name));
             }
         }
     }

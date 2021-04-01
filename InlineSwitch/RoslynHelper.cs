@@ -5,7 +5,7 @@ using System.Text;
 
 namespace InlineSwitch
 {
-    internal static class RoslynHelpers
+    internal static class RoslynHelper
     {
         public static string GetFullName(this ITypeSymbol symbol, string typeConcat = ".")
         {

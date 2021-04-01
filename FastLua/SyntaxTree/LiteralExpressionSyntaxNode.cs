@@ -23,14 +23,14 @@ namespace FastLua.SyntaxTree
             }
         }
 
-        private long _int64Value;
-        public long Int64Value
+        private int _int32Value;
+        public int Int32Value
         {
-            get => SpecializationType.LuaType == SpecializationLuaType.Int64 ? _int64Value : throw new InvalidOperationException();
+            get => SpecializationType.LuaType == SpecializationLuaType.Int32 ? _int32Value : throw new InvalidOperationException();
             set
             {
-                SpecializationType = new() { LuaType = SpecializationLuaType.Int64 };
-                _int64Value = value;
+                SpecializationType = new() { LuaType = SpecializationLuaType.Int32 };
+                _int32Value = value;
             }
         }
 
@@ -46,7 +46,7 @@ namespace FastLua.SyntaxTree
         }
 
         private string _stringValue;
-        private long? _sIntValue;
+        private int? _sIntValue;
         private double? _sDoubleValue;
         public string StringValue
         {
@@ -60,7 +60,7 @@ namespace FastLua.SyntaxTree
             }
         }
 
-        public void SetStringValue(string str, long? si, double? sd)
+        public void SetStringValue(string str, int? si, double? sd)
         {
             _stringValue = str;
             _sIntValue = si;
@@ -69,16 +69,16 @@ namespace FastLua.SyntaxTree
         }
 
         public bool CanBeInt64 =>
-            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Int32 ||
             _sIntValue.HasValue;
 
         public bool CanBeDouble =>
-            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Int32 ||
             SpecializationType.LuaType == SpecializationLuaType.Double ||
             _sDoubleValue.HasValue;
 
         public bool CanBeString =>
-            SpecializationType.LuaType == SpecializationLuaType.Int64 ||
+            SpecializationType.LuaType == SpecializationLuaType.Int32 ||
             SpecializationType.LuaType == SpecializationLuaType.Double ||
             SpecializationType.LuaType == SpecializationLuaType.String;
 
@@ -97,12 +97,12 @@ namespace FastLua.SyntaxTree
             case SpecializationLuaType.Bool:
                 SerializeV(bw, _boolValue);
                 break;
-            case SpecializationLuaType.Int64:
-                SerializeV(bw, _int64Value);
+            case SpecializationLuaType.Int32:
+                SerializeV(bw, _int32Value);
                 break;
             case SpecializationLuaType.Double:
                 SerializeV(bw, _doubleValue);
-                SerializeV(bw, _int64Value);
+                SerializeV(bw, _int32Value);
                 break;
             case SpecializationLuaType.String:
                 bw.Write(_stringValue);
@@ -130,16 +130,16 @@ namespace FastLua.SyntaxTree
             case SpecializationLuaType.Bool:
                 _boolValue = br.ReadBoolean();
                 break;
-            case SpecializationLuaType.Int64:
-                _int64Value = br.ReadInt64();
+            case SpecializationLuaType.Int32:
+                _int32Value = br.ReadInt32();
                 break;
             case SpecializationLuaType.Double:
                 _doubleValue = br.ReadDouble();
-                _int64Value = br.ReadInt64();
+                _int32Value = br.ReadInt32();
                 break;
             case SpecializationLuaType.String:
                 _stringValue = br.ReadString();
-                _sIntValue = br.ReadBoolean() ? br.ReadInt64() : null;
+                _sIntValue = br.ReadBoolean() ? br.ReadInt32() : null;
                 _sDoubleValue = br.ReadBoolean() ? br.ReadDouble() : null;
                 break;
             }

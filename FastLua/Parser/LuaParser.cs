@@ -275,7 +275,7 @@ namespace FastLua.Parser
             {
                 Expressions = { Body(ref t, hasSelf: false) },
             };
-            Next(ref t);
+            //Next(ref t);
             v.Declaration = new(assignment);
             _output.CurrentBlock.Add(assignment);
         }
@@ -463,6 +463,7 @@ namespace FastLua.Parser
             }
             var func = _output.OpenFunction(p, hasSelf, hasVararg);
             StatList(ref t);
+            CheckAndNext(ref t, LuaTokenType.End);
             return _output.CloseFunction(func);
         }
 
@@ -560,7 +561,7 @@ namespace FastLua.Parser
                 var d = LuaParserHelper.ParseNumber(t.Content);
                 ret = new LiteralExpressionSyntaxNode()
                 {
-                    Int64Value = i ?? 0, //Set int first so double's type will overwrite.
+                    Int32Value = i ?? 0, //Set int first so double's type will overwrite.
                     DoubleValue = d.Value,
                 };
                 Next(ref t);
@@ -700,8 +701,15 @@ namespace FastLua.Parser
             {
             case (LuaTokenType)'(':
                 Next(ref t);
-                ret.Args = ExprList(ref t);
-                CheckAndNext(ref t, (LuaTokenType)')');
+                if (!TestAndNext(ref t, (LuaTokenType)')'))
+                {
+                    ret.Args = ExprList(ref t);
+                    CheckAndNext(ref t, (LuaTokenType)')');
+                }
+                else
+                {
+                    ret.Args = new ExpressionListSyntaxNode();
+                }
                 break;
             case (LuaTokenType)'{':
                 ret.Args = new ExpressionListSyntaxNode()
@@ -749,7 +757,10 @@ namespace FastLua.Parser
                     break;
                 }
             }
-            ret.Fields[^1].IsLastField = true;
+            if (ret.Fields.Count > 0)
+            {
+                ret.Fields[^1].IsLastField = true;
+            }
             //'}' has been consumed already.
             return ret;
         }

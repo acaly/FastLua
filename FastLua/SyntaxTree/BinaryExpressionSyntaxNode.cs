@@ -12,7 +12,7 @@ namespace FastLua.SyntaxTree
         public enum Raw : ushort
         {
             Unknown,
-            Add, Min, Mul, Div, Pow, Mod,
+            Add, Sub, Mul, Div, Pow, Mod,
             Conc,
             L, LE, G, GE, E, NE,
             And, Or,
@@ -31,7 +31,7 @@ namespace FastLua.SyntaxTree
 
         public static readonly BinaryOperator Unknown = default;
         public static readonly BinaryOperator Add = new(Raw.Add, 6);
-        public static readonly BinaryOperator Min = new(Raw.Min, 6);
+        public static readonly BinaryOperator Min = new(Raw.Sub, 6);
         public static readonly BinaryOperator Mul = new(Raw.Mul, 7);
         public static readonly BinaryOperator Div = new(Raw.Div, 7);
         public static readonly BinaryOperator Pow = new(Raw.Pow, 10, 9);

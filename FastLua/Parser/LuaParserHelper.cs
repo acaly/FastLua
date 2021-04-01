@@ -26,7 +26,7 @@ namespace FastLua.Parser
             return ret * Math.Pow(r.Value.Base, r.Value.Power);
         }
 
-        public static long? ParseInteger(ReadOnlySpan<char> str)
+        public static int? ParseInteger(ReadOnlySpan<char> str)
         {
             return null;
         }
@@ -34,11 +34,11 @@ namespace FastLua.Parser
         private static RawNumber? ParseRawNumber(ReadOnlySpan<char> str)
         {
             bool sign = false;
-            while (LuaRawTokenizer.GetCharType(str[0]) == LuaRawTokenType.Whitespace)
+            while (str.Length > 0 && LuaRawTokenizer.GetCharType(str[0]) == LuaRawTokenType.Whitespace)
             {
                 str = str[1..];
             }
-            if (str[0] == '-')
+            if (str.Length > 0 && str[0] == '-')
             {
                 sign = true;
                 str = str[1..];
