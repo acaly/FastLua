@@ -58,7 +58,8 @@ namespace FastLua.VM
                     Upval(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
                     Table(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
                     Call(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
-                    Ret(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
+                    Ret(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV, out var ret);
+                    if (ret) return;
                     break;
                 }
             }
@@ -416,8 +417,7 @@ namespace FastLua.VM
 
                 //Adjust current sig block at the left side.
                 //This allows to merge other arguments that have already been pushed before.
-                stack.AdjustSigBlockLeft(ref thisFunc.SigDesc[b],
-                    (Math.Max(lastWriteO + 1, thisFunc.SigRegionOffsetO), Math.Max(lastWriteV + 1, thisFunc.SigRegionOffsetV)));
+                stack.ResizeSigBlockLeft(ref thisFunc.SigDesc[b], lastWriteO, lastWriteV);
 
                 var newFuncP = stack.ObjectFrame[a];
                 if (newFuncP is LClosure lc)
@@ -462,9 +462,30 @@ namespace FastLua.VM
                     };
 
                     //Before entering the loop, clear the current sig.
-                    stack.AdjustSigBlockRightEmpty();
+                    stack.ClearSigBlock();
 
                     InterpreterLoop(0, thread, ref newStack);
+
+                    //Adjust return values (without moving additional to vararg list).
+                    if (!stack.TryAdjustSigBlockRight(ref stack.MetaData.Func.SigDesc[c], null, out _))
+                    {
+                        JumpToFallback(thread, ref stack);
+                        break;
+                    }
+
+                    //Clear object stack to avoid memory leak.
+                    if (newStack.Head == stack.Head)
+                    {
+                        //Shared.
+                        var clearStart = stack.MetaData.SigTotalOLength;
+                        newStack.ObjectFrame.Slice(clearStart).Clear();
+                    }
+                    else
+                    {
+                        newStack.ObjectFrame.Clear();
+                    }
+
+                    thread.Stack.Deallocate(ref newStack);
                 }
                 else
                 {
@@ -472,17 +493,17 @@ namespace FastLua.VM
                     throw new NotImplementedException();
                 }
 
-                //Adjust return values.
-                if (!stack.TryAdjustSigBlockRight(ref stack.MetaData.Func.SigDesc[c]))
+                if ((Opcodes)(ii >> 24) == Opcodes.CALLC)
                 {
-                    JumpToFallback(thread, ref stack);
-                    break;
+                    stack.ClearSigBlock();
                 }
                 break;
             }
             case Opcodes.VARG:
             {
+                //Currently only support unspecialized stack.
                 Debug.Assert(lastWriteO == lastWriteV);
+                Debug.Assert(stack.MetaData.SigNumberOffset == stack.MetaData.SigObjectOffset);
                 stack.AppendVarargSig(stack.MetaData.VarargType, stack.MetaData.VarargLength);
                 var stackStart = stack.MetaData.SigNumberOffset;
                 for (int i = 0; i < stack.MetaData.VarargLength; ++i)
@@ -498,7 +519,7 @@ namespace FastLua.VM
                 int b = (int)((ii >> 8) & 0xFF);
                 int c = (int)(ii & 0xFF);
 
-                stack.AdjustSigBlockLeft(ref stack.MetaData.Func.SigDesc[a], (b, c));
+                stack.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b, c);
                 break;
             }
             }
@@ -507,22 +528,23 @@ namespace FastLua.VM
         //ret: set sig for parent frame
         [InlineSwitchCase]
         private static void Ret(Thread thread, ref StackFrame stack,
-            ref int pc, uint ii, ref int lastWriteO, ref int lastWriteV)
+            ref int pc, uint ii, ref int lastWriteO, ref int lastWriteV, out bool ret)
         {
+            ret = true;
             switch ((Opcodes)(ii >> 24))
             {
             case Opcodes.RET0:
             {
                 //No need to pass anything to caller.
-                stack.ObjectFrame.Clear();
                 return;
             }
             case Opcodes.RETN:
             {
                 unsafe
                 {
+                    //TODO This may cause overflow on last stack.
                     ref var lastStack = ref StackFrame.GetLast(ref stack.Last[0]);
-                    var (o, v) = lastStack.AppendSig(ref stack.MetaData);
+                    var (o, v) = lastStack.ReplaceSigBlock(ref stack.MetaData);
                     var ol = stack.MetaData.SigTotalOLength;
                     var vl = stack.MetaData.SigTotalVLength;
                     for (int i = 0; i < ol; ++i)
@@ -534,10 +556,10 @@ namespace FastLua.VM
                         lastStack.NumberFrame[v + i] = stack.NumberFrame[stack.MetaData.SigNumberOffset];
                     }
                 }
-                stack.ObjectFrame.Clear();
                 return;
             }
             }
+            ret = false;
         }
     }
 }

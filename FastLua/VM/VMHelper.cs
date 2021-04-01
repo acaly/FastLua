@@ -62,21 +62,75 @@ namespace FastLua.VM
 
         public static TypedValue Add(TypedValue a, TypedValue b)
         {
+            var ta = a.Type;
+            var tb = b.Type;
+            if (ta == tb)
+            {
+                switch (ta)
+                {
+                case VMSpecializationType.Int:
+                    return TypedValue.MakeInt(a.IntVal + b.IntVal);
+                case VMSpecializationType.Double:
+                    return TypedValue.MakeDouble(a.DoubleVal + b.DoubleVal);
+                default:
+                    break;
+                }
+            }
             throw new NotImplementedException();
         }
 
         public static TypedValue Sub(TypedValue a, TypedValue b)
         {
+            var ta = a.Type;
+            var tb = b.Type;
+            if (ta == tb)
+            {
+                switch (ta)
+                {
+                case VMSpecializationType.Int:
+                    return TypedValue.MakeInt(a.IntVal - b.IntVal);
+                case VMSpecializationType.Double:
+                    return TypedValue.MakeDouble(a.DoubleVal - b.DoubleVal);
+                default:
+                    break;
+                }
+            }
             throw new NotImplementedException();
         }
 
         public static TypedValue Mul(TypedValue a, TypedValue b)
         {
+            var ta = a.Type;
+            var tb = b.Type;
+            if (ta == tb)
+            {
+                switch (ta)
+                {
+                case VMSpecializationType.Int:
+                    return TypedValue.MakeInt(a.IntVal * b.IntVal);
+                case VMSpecializationType.Double:
+                    return TypedValue.MakeDouble(a.DoubleVal * b.DoubleVal);
+                default:
+                    break;
+                }
+            }
             throw new NotImplementedException();
         }
 
         public static TypedValue Div(TypedValue a, TypedValue b)
         {
+            var ta = a.Type;
+            var tb = b.Type;
+            if (ta == tb)
+            {
+                switch (ta)
+                {
+                case VMSpecializationType.Double:
+                    return TypedValue.MakeDouble(a.DoubleVal / b.DoubleVal);
+                default:
+                    break;
+                }
+            }
             throw new NotImplementedException();
         }
 

@@ -3,6 +3,7 @@ using BenchmarkDotNet.Running;
 using FastLua.Diagnostics;
 using FastLua.Parser;
 using FastLua.SyntaxTree;
+using FastLua.VM;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -81,6 +82,51 @@ return function()
 end
 ";
         public static void Main()
+        {
+            var (sig0, sig0var) = StackSignature.CreateUnspecialized(0);
+            var proto = new Proto
+            {
+                ChildFunctions = Array.Empty<Proto>(),
+                ConstantsU = new TypedValue[]
+                {
+                    TypedValue.MakeDouble(1),
+                    TypedValue.MakeDouble(2),
+                },
+                SigDesc = Array.Empty<SignatureDesc>(),
+                ParameterSig = new SignatureDesc
+                {
+                    SigType = sig0,
+                    SigTypeId = sig0.GlobalId,
+                    HasVO = false,
+                    HasVV = false,
+                    SigFOLength = 0,
+                    SigFVLength = 0,
+                },
+                NumStackSize = 100,
+                ObjStackSize = 100,
+                LocalRegionOffsetO = 0,
+                LocalRegionOffsetV = 0,
+                UpvalRegionOffset = 0,
+                SigRegionOffsetO = 10,
+                SigRegionOffsetV = 10,
+                Instructions = new uint[]
+                {
+                    (uint)(Opcodes.K) << 24 | 10 << 16 | 0 << 8 | 0,
+                    (uint)(Opcodes.K) << 24 | 11 << 16 | 1 << 8 | 0,
+                    (uint)(Opcodes.ADD) << 24 | 12 << 16 | 10 << 8 | 11,
+                    (uint)(Opcodes.RET0) << 24,
+                },
+            };
+            var closure = new LClosure
+            {
+                Proto = proto,
+                UpvalLists = Array.Empty<TypedValue[]>(),
+            };
+            var thread = new Thread();
+            LuaInterpreter.Execute(thread, closure);
+        }
+
+        public static void AST()
         {
             for (int i = 0; i < 1000000; ++i)
             {

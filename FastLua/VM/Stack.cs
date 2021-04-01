@@ -96,45 +96,149 @@ namespace FastLua.VM
             ObjectFrame[uto] = ObjectFrame[ufrom];
         }
 
-        public void AdjustSigBlockLeft(ref SignatureDesc desc, (int o, int v) emptySigPosition)
+        //Similar to TryAdjustSigBlockRight but adjust to empty sig (clear sig info).
+        public void ClearSigBlock()
         {
-            //Currently only support sig id 0 (no vararg) and sig id 1(vararg)
-            throw new NotImplementedException();
+            MetaData.SigVOLength = MetaData.SigVVLength = 0;
+            MetaData.SigDesc = SignatureDesc.Empty;
         }
 
-        public void AdjustSigBlockRightEmpty()
+        public void SetSigBlock(ref SignatureDesc desc, int o, int v)
         {
-            //Similar to TryAdjustSigBlockRight but adjust to empty sig (clear sig info)
-            throw new NotImplementedException();
+            MetaData.SigObjectOffset = o;
+            MetaData.SigNumberOffset = v;
+            MetaData.SigVOLength = 0;
+            MetaData.SigVVLength = 0;
+            MetaData.SigDesc = desc;
         }
 
-        public bool TryAdjustSigBlockRight(ref SignatureDesc desc)
+        //Used by callee to add return values. This list will be checked and adjusted
+        //again using TryAdjustSigBlockRight.
+        public (int o, int v) ReplaceSigBlock(ref StackMetaData meta)
         {
-            //Currently only support sig id 0 (no vararg) and sig id 1(vararg)
-            throw new NotImplementedException();
+            MetaData.SigDesc = meta.SigDesc;
+            MetaData.SigVVLength = meta.SigVVLength;
+            MetaData.SigVOLength = meta.SigVOLength;
+            return (MetaData.SigObjectOffset, MetaData.SigNumberOffset);
         }
 
+        //Adjust sig block. This operation handles sig block generated inside the same function
+        //so it should never fail (or it's a program error), and we don't really need to check.
+        public void ResizeSigBlockLeft(ref SignatureDesc desc, int o, int v)
+        {
+            if (MetaData.SigDesc.SigTypeId == 0)
+            {
+                //New sig block at given place.
+                //Note that the (o,v) is the last item (inclusive) in the block.
+                MetaData.SigObjectOffset = o - desc.SigFOLength;
+                MetaData.SigNumberOffset = v - desc.SigFVLength;
+                MetaData.SigDesc = desc;
+            }
+            else
+            {
+                Debug.Assert(desc.SigFVLength > MetaData.SigDesc.SigFVLength);
+                Debug.Assert(desc.SigFOLength > MetaData.SigDesc.SigFOLength);
+
+                //Extend to left.
+                MetaData.SigNumberOffset -= desc.SigFVLength - MetaData.SigDesc.SigFVLength;
+                MetaData.SigObjectOffset -= desc.SigFOLength - MetaData.SigDesc.SigFOLength;
+                MetaData.SigDesc = desc;
+            }
+            //Don't clear vv and vo length.
+        }
+
+        //Adjust the sig block with given type without changing its starting position.
+        //If varargStorage is not null, copy the vararg part to the separate list.
         public bool TryAdjustSigBlockRight(ref SignatureDesc desc, List<TypedValue> varargStorage, out int varargCount)
         {
-            //similar to TryAdjustSigBlockRight, but instead of removing more values from right,
-            //it moves more values into a vararg storage.
-            throw new NotImplementedException();
+            if (desc.SigTypeId == MetaData.SigDesc.SigTypeId)
+            {
+                //Same type.
+                WriteVararg(varargStorage, out varargCount);
+                return true;
+            }
+            if (!MetaData.SigDesc.SigType.IsCompatibleWith(desc.SigTypeId))
+            {
+                //Not compatible.
+                if (!desc.SigType.IsUnspecialized)
+                {
+                    //Target is not unspecialized. We can do nothing here.
+                    varargCount = 0;
+                    return false;
+                }
+
+                //Target is unspecialized. We can make them compatible.
+                Debug.Assert(!MetaData.SigDesc.SigType.IsUnspecialized);
+                MetaData.SigDesc.SigType.AdjustStackToUnspecialized();
+            }
+
+            var diffO = desc.SigFOLength - MetaData.SigDesc.SigFOLength;
+            var diffV = desc.SigFVLength - MetaData.SigDesc.SigFVLength;
+
+            //Fill nils if necessary.
+            if (diffO > 0)
+            {
+                ObjectFrame.Slice(MetaData.SigObjectOffset + MetaData.SigTotalOLength, diffO).Clear();
+            }
+            if (diffV > 0)
+            {
+                NumberFrame.Slice(MetaData.SigNumberOffset + MetaData.SigTotalVLength, diffV).Fill(TypedValue.Nil.Number);
+            }
+            MetaData.SigDesc = desc;
+            MetaData.SigVOLength -= diffO; //Update variant part length for WriteVararg to work properly.
+            MetaData.SigVVLength -= diffV;
+            WriteVararg(varargStorage, out varargCount);
+            return true;
         }
 
-        public (int o, int v) AppendSig(ref StackMetaData newSigData)
+        private void WriteVararg(List<TypedValue> storage, out int count)
         {
-            //Append slots after current sig based on another frame's sig data.
-            //Used by VM's RETN to pass return values back to caller.
-            //Return index of the new region for copying.
-            throw new NotImplementedException();
+            if (storage is null)
+            {
+                count = 0;
+                return;
+            }
+            var vo = MetaData.SigDesc.HasVO;
+            var vv = MetaData.SigDesc.HasVV;
+            int start;
+            if (vo && vv)
+            {
+                //Unspecialized vararg.
+                Debug.Assert(MetaData.SigNumberOffset == MetaData.SigObjectOffset);
+                Debug.Assert(MetaData.SigDesc.SigFVLength == MetaData.SigDesc.SigFOLength);
+                Debug.Assert(MetaData.SigVOLength == MetaData.SigVVLength);
+                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
+                count = MetaData.SigVVLength;
+            }
+            else if (vv)
+            {
+                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
+                count = MetaData.SigVVLength;
+            }
+            else
+            {
+                Debug.Assert(vo);
+                start = MetaData.SigObjectOffset + MetaData.SigDesc.SigFOLength;
+                count = MetaData.SigVOLength;
+            }
+            for (int i = 0; i < count; ++i)
+            {
+                storage.Add(new TypedValue
+                {
+                    Number = NumberFrame[start + i],
+                    Object = null,
+                });
+            }
         }
 
         public void AppendVarargSig(VMSpecializationType type, int count)
         {
-            //Unspecialized VARG must be used on unspecialized sig block.
-            Debug.Assert(MetaData.SigNumberOffset == MetaData.SigObjectOffset);
-
-            throw new NotImplementedException();
+            //There can only be one vararg block.
+            Debug.Assert(MetaData.SigVOLength == 0 && MetaData.SigVVLength == 0);
+            MetaData.SigDesc = MetaData.SigDesc.WithVararg(type);
+            var (v, o) = type.GetStorageType();
+            if (v) MetaData.SigVVLength = count;
+            if (o) MetaData.SigVOLength = count;
         }
     }
 
@@ -154,6 +258,25 @@ namespace FastLua.VM
             HasVO = false,
             HasVV = false,
         };
+
+        public SignatureDesc WithVararg(VMSpecializationType type)
+        {
+            if (HasVV || HasVO)
+            {
+                throw new InvalidOperationException();
+            }
+            var sig = SigType.WithVararg(type);
+            var (vv, vo) = type.GetStorageType();
+            return new SignatureDesc
+            {
+                SigTypeId = sig.GlobalId,
+                SigType = sig,
+                SigFOLength = SigFOLength,
+                SigFVLength = SigFVLength,
+                HasVO = vo,
+                HasVV = vv,
+            };
+        }
     }
 
     //This struct stores other per-frame data (in addition to stack).
@@ -163,7 +286,6 @@ namespace FastLua.VM
 
         //Signature region.
 
-        //TODO offset should also
         public SignatureDesc SigDesc;
 
         public int SigNumberOffset; //Start of sig block.
@@ -224,7 +346,7 @@ namespace FastLua.VM
             Debug.Assert(numSize < Options.MaxSingleFunctionStackSize);
             Debug.Assert(objSize < Options.MaxSingleFunctionStackSize);
 
-            var s = _segments[_currentHead];
+            var s = _segments[(int)lastFrame.Head];
 
             //TODO should check total length instead of numSize and objSize
             var argNSize = lastFrame.MetaData.SigTotalVLength;
@@ -249,7 +371,6 @@ namespace FastLua.VM
                 //Copy args from old frame.
                 argN.CopyTo(nframe);
                 argO.CopyTo(oframe);
-
                 return new StackFrame
                 {
                     Head = _currentHead,
@@ -275,9 +396,9 @@ namespace FastLua.VM
 
         public void Deallocate(ref StackFrame lastFrame)
         {
-            throw new NotImplementedException();
-            //Pop from last segment.
-            //Remove last segment (move to cache) if it's empty
+            var s = _segments[(int)lastFrame.Head];
+            s.NumberStack.Pop(lastFrame.NumberFrame);
+            s.ObjectStack.Pop(lastFrame.ObjectFrame);
         }
 
         private SerializedStackFrame SerializeFrameInternal(ref StackFrame frame)

@@ -60,6 +60,7 @@ namespace FastLua.VM
 
         JMP,
         CALL,
+        CALLC,
         VARG,
 
         //Signature block.

@@ -32,5 +32,24 @@ namespace FastLua.VM
         ValueOnly = 0x110,
         RefOnly = 0x120,
         Polymorphic = 0x140,
+
+        //Masks to check storage usage.
+
+        StorageValue = 0x10,
+        StorageRef = 0x20,
+        StorageBits = 0xF0,
+    }
+
+    internal static class VMSpecializationTypeExtensions
+    {
+        public static (bool num, bool obj) GetStorageType(this VMSpecializationType specType)
+        {
+            return (specType & VMSpecializationType.StorageBits) switch
+            {
+                VMSpecializationType.StorageRef => (true, false),
+                VMSpecializationType.StorageValue => (false, true),
+                _ => (true, true),
+            };
+        }
     }
 }
