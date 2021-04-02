@@ -142,7 +142,7 @@ end
                 {
                     (uint)(Opcodes.K) << 24 | 9 << 16 | 2 << 8 | 0, //local[9] = constant[2]
                     (uint)(Opcodes.CALLC) << 24 | 9 << 16 | 1 << 8 | 2, //call local[9] sig: 1(sig0)->2(sig1) (10,10)
-                    (uint)(Opcodes.K) << 24 | 1 << 16 | 0 << 8 | 0, //local[1] = constant[0]
+                    (uint)(Opcodes.K) << 24 | 1 << 16 | 1 << 8 | 0, //local[1] = constant[1]
                     (uint)(Opcodes.ADD) << 24 | 10 << 16 | 10 << 8 | 1, //add local[10] = local[10] + local[1]
                     (uint)(Opcodes.RETN) << 24 | 2 << 16 | 10 << 8 | 10, //ret sig: 2(sig1) (10,10)
                 },
@@ -154,9 +154,15 @@ end
             };
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
-            for (int i = 0; i < 100000; ++i)
+            var stack = thread.Stack.Allocate(20, 20);
+            stack.MetaData = new StackMetaData
             {
-                LuaInterpreter.Execute(thread, closure1);
+                SigDesc = StackSignature.Empty.GetDesc(),
+            };
+            for (int i = 0; i < 10000000; ++i)
+            {
+                stack.ClearSigBlock();
+                LuaInterpreter.Execute(thread, closure1, ref stack);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);
         }

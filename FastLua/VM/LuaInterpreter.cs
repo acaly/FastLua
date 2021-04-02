@@ -14,31 +14,55 @@ namespace FastLua.VM
     {
         //Static info for interpreter that does not need any update when entering/exiting frames.
 
-        public static void Execute(Thread thread, LClosure closure)
+        internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
         {
-            //Currently cannot resume a yielded thread.
-            var stack = thread.Stack.Allocate(closure.Proto.NumStackSize, closure.Proto.ObjStackSize);
-            stack.MetaData = new StackMetaData
-            {
-                Func = closure.Proto,
-                SigDesc = default,
-                SigNumberOffset = closure.Proto.SigRegionOffsetV,
-                SigObjectOffset = closure.Proto.SigRegionOffsetO,
-                SigVOLength = 0,
-                SigVVLength = 0,
-                VarargStart = 0,
-                VarargLength = 0,
-                VarargType = default,
-            };
-            InterpreterLoop_Template(0, thread, ref stack);
-            thread.Stack.Deallocate(ref stack);
+            InterpreterLoop(0, thread, closure, ref stack);
         }
 
-        private static partial void InterpreterLoop(int startPc, Thread thread, ref StackFrame stack);
+        private static partial void InterpreterLoop(int startPc, Thread thread, LClosure closure, ref StackFrame lastFrame);
 
         [InlineSwitch(typeof(LuaInterpreter))]
-        private static void InterpreterLoop_Template(int startPc, Thread thread, ref StackFrame stack)
+        private static void InterpreterLoop_Template(int startPc, Thread thread, LClosure closure, ref StackFrame lastFrame)
         {
+            //This allocates the new frame's stack, which may overlap with the current (to pass args)
+            //TODO seems a lot of work here in Allocate. Should try to simplify.
+            //Especially the sig check.
+            var proto = closure.Proto;
+            var stack = thread.Stack.Allocate(ref lastFrame, proto.NumStackSize, proto.ObjStackSize,
+                onSameSeg: lastFrame.MetaData.SigDesc.SigType.Vararg.HasValue);
+            lastFrame.ClearSigBlock(); //Clear argument sig. Prepare for receiving return sig.
+
+            //Adjust argument list according to the requirement of the callee.
+            //Also remove vararg into separate stack.
+            int varargStart = thread.VarargTotalLength;
+            if (!stack.TryAdjustSigBlockRight(ref proto.ParameterSig, thread.VarargStack, out var varargLength))
+            {
+                //Cannot adjust argument list. Adjust the argument list to unspecialized form and call fallback.
+                stack.MetaData.SigDesc.SigType.AdjustStackToUnspecialized();
+                JumpToFallback(thread, ref stack);
+                return;
+            }
+
+            //Push closure's upvals.
+            Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffsetO - proto.UpvalRegionOffset);
+            for (int i = 0; i < closure.UpvalLists.Length; ++i)
+            {
+                stack.ObjectFrame[proto.UpvalRegionOffset + i] = closure.UpvalLists[i];
+                //We could also set types in value frame, but this region should never be accessed as other types.
+                //This is also to be consistent for optimized functions that compresses the stack.
+            }
+
+            stack.MetaData = new StackMetaData
+            {
+                Func = proto,
+                SigDesc = SignatureDesc.Empty,
+                SigNumberOffset = proto.SigRegionOffsetV,
+                SigObjectOffset = proto.SigRegionOffsetO,
+                VarargStart = varargStart,
+                VarargType = VMSpecializationType.Polymorphic,
+                VarargLength = varargLength,
+            };
+
             var inst = stack.MetaData.Func.Instructions;
             var pc = startPc;
             int lastWriteO = 0, lastWriteV = 0;
@@ -59,9 +83,21 @@ namespace FastLua.VM
                     Table(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
                     Call(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV);
                     Ret(thread, ref stack, ref pc, ii, ref lastWriteO, ref lastWriteV, out var ret);
-                    if (ret) return;
+                    if (ret) goto loopEnd;
                     break;
                 }
+            }
+        loopEnd:
+            //Clear object stack to avoid memory leak.
+            if (stack.Head == lastFrame.Head)
+            {
+                //Shared.
+                var clearStart = stack.MetaData.SigTotalOLength;
+                stack.ObjectFrame.Slice(clearStart).Clear();
+            }
+            else
+            {
+                stack.ObjectFrame.Clear();
             }
         }
 
@@ -230,6 +266,15 @@ namespace FastLua.VM
                 lastWriteO = lastWriteV = a;
                 break;
             }
+            case Opcodes.ADD_D:
+            {
+                var a = (byte)(ii >> 16);
+                var b = (byte)(ii >> 8);
+                var c = (byte)ii;
+                stack.NumberFrame[a] = stack.NumberFrame[b] + stack.NumberFrame[c];
+                //lastWriteO = lastWriteV = a; //~5% overhead
+                break;
+            }
             case Opcodes.SUB:
             {
                 int a = (int)((ii >> 16) & 0xFF);
@@ -347,14 +392,14 @@ namespace FastLua.VM
                 int b = (int)((ii >> 8) & 0xFF);
                 int u = stack.MetaData.SigObjectOffset;
                 int n = stack.MetaData.SigVOLength;
-                var closure = new LClosure
+                var nclosure = new LClosure
                 {
                     Proto = stack.MetaData.Func.ChildFunctions[b],
                     UpvalLists = new TypedValue[n][],
                 };
                 var src = MemoryMarshal.CreateSpan(ref Unsafe.As<object, TypedValue[]>(ref stack.ObjectFrame[u]), n);
-                src.CopyTo(closure.UpvalLists.AsSpan());
-                stack.SetU(a, TypedValue.MakeLClosure(closure));
+                src.CopyTo(nclosure.UpvalLists.AsSpan());
+                stack.SetU(a, TypedValue.MakeLClosure(nclosure));
                 lastWriteO = lastWriteV = a;
                 break;
             }
@@ -425,52 +470,7 @@ namespace FastLua.VM
                 var newFuncP = stack.ObjectFrame[a];
                 if (newFuncP is LClosure lc)
                 {
-                    //Setup new stack frame and call.
-                    var proto = lc.Proto;
-
-                    var onSameSegment = stack.MetaData.Func.SigDesc[c].SigType.Vararg.HasValue;
-
-                    //This allocates the new frame's stack, which may overlap with the current (to pass args)
-                    //TODO seems a lot of work here in Allocate. Should try to simplify.
-                    //Especially the sig check.
-                    var newStack = thread.Stack.Allocate(ref stack, proto.NumStackSize, proto.ObjStackSize, onSameSegment);
-
-                    //Adjust argument list according to the requirement of the callee.
-                    //Also remove vararg into separate stack.
-                    int varargStart = thread.VarargTotalLength;
-                    if (!newStack.TryAdjustSigBlockRight(ref proto.ParameterSig, thread.VarargStack, out var varargLength))
-                    {
-                        //Cannot adjust argument list. Need to call a deoptimized version of the target function.
-                        //This can be done by re-executing the CALL instruction from the deoptimized version.
-                        pc -= 1;
-                        JumpToFallback(thread, ref stack);
-                        break;
-                    }
-
-                    //Push closure's upvals.
-                    Debug.Assert(lc.UpvalLists.Length <= proto.LocalRegionOffsetO - proto.UpvalRegionOffset);
-                    for (int i = 0; i < lc.UpvalLists.Length; ++i)
-                    {
-                        newStack.ObjectFrame[proto.UpvalRegionOffset + i] = lc.UpvalLists[i];
-                        //We could also set types in value frame, but this region should never be accessed as other types.
-                        //This is also to be consistent for optimized functions that compresses the stack.
-                    }
-
-                    newStack.MetaData = new StackMetaData
-                    {
-                        Func = proto,
-                        SigDesc = SignatureDesc.Empty,
-                        SigNumberOffset = proto.SigRegionOffsetV,
-                        SigObjectOffset = proto.SigRegionOffsetO,
-                        VarargStart = varargStart,
-                        VarargType = VMSpecializationType.Polymorphic,
-                        VarargLength = varargLength,
-                    };
-
-                    //Before entering the loop, clear the current sig.
-                    stack.ClearSigBlock();
-
-                    InterpreterLoop(0, thread, ref newStack);
+                    InterpreterLoop(0, thread, lc, ref stack);
 
                     //Adjust return values (without moving additional to vararg list).
                     if (!stack.TryAdjustSigBlockRight(ref stack.MetaData.Func.SigDesc[c], null, out _))
@@ -478,20 +478,6 @@ namespace FastLua.VM
                         JumpToFallback(thread, ref stack);
                         break;
                     }
-
-                    //Clear object stack to avoid memory leak.
-                    if (newStack.Head == stack.Head)
-                    {
-                        //Shared.
-                        var clearStart = stack.MetaData.SigTotalOLength;
-                        newStack.ObjectFrame.Slice(clearStart).Clear();
-                    }
-                    else
-                    {
-                        newStack.ObjectFrame.Clear();
-                    }
-
-                    thread.Stack.Deallocate(ref newStack);
                 }
                 else
                 {
@@ -542,7 +528,7 @@ namespace FastLua.VM
             case Opcodes.RET0:
             {
                 //No need to pass anything to caller.
-                return;
+                goto loopEnd;
             }
             case Opcodes.RETN:
             {
@@ -593,10 +579,11 @@ namespace FastLua.VM
                 {
                     retNum[i] = stack.NumberFrame[stack.MetaData.SigNumberOffset + i];
                 }
-                return;
+                goto loopEnd;
             }
             }
             ret = false;
+        loopEnd:;
         }
     }
 }

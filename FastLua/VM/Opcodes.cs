@@ -39,6 +39,8 @@ namespace FastLua.VM
         POW,
         CAT,
 
+        ADD_D,
+
         //Constant.
 
         K,

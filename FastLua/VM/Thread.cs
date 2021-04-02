@@ -12,5 +12,6 @@ namespace FastLua.VM
         public StringBuilder StringBuilder = new();
         public List<TypedValue> VarargStack = new();
         public int VarargTotalLength = 0;
+
     }
 }
