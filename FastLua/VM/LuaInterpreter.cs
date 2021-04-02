@@ -418,7 +418,9 @@ namespace FastLua.VM
 
                 //Adjust current sig block at the left side.
                 //This allows to merge other arguments that have already been pushed before.
-                stack.ResizeSigBlockLeft(ref thisFunc.SigDesc[b], lastWriteO, lastWriteV);
+                //If current sig is empty, set the starting point based on lastWrite.
+                ref var argSig = ref thisFunc.SigDesc[b];
+                stack.ResizeSigBlockLeft(ref argSig, lastWriteO + 1 - argSig.SigFOLength, lastWriteV + 1 - argSig.SigFVLength);
 
                 var newFuncP = stack.ObjectFrame[a];
                 if (newFuncP is LClosure lc)
@@ -430,6 +432,7 @@ namespace FastLua.VM
 
                     //This allocates the new frame's stack, which may overlap with the current (to pass args)
                     //TODO seems a lot of work here in Allocate. Should try to simplify.
+                    //Especially the sig check.
                     var newStack = thread.Stack.Allocate(ref stack, proto.NumStackSize, proto.ObjStackSize, onSameSegment);
 
                     //Adjust argument list according to the requirement of the callee.
@@ -456,9 +459,9 @@ namespace FastLua.VM
                     newStack.MetaData = new StackMetaData
                     {
                         Func = proto,
-                        SigDesc = default, //New function has no sig block yet.
-                        SigNumberOffset = 0,
-                        SigObjectOffset = 0,
+                        SigDesc = SignatureDesc.Empty,
+                        SigNumberOffset = proto.SigRegionOffsetV,
+                        SigObjectOffset = proto.SigRegionOffsetO,
                         VarargStart = varargStart,
                         VarargType = VMSpecializationType.Polymorphic,
                         VarargLength = varargLength,

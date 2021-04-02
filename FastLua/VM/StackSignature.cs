@@ -19,6 +19,9 @@ namespace FastLua.VM
         public VMSpecializationType? Vararg { get; private init; }
         public bool IsUnspecialized { get; private init; }
 
+        public static readonly StackSignature Empty = CreateUnspecialized(0).novararg;
+        public static readonly StackSignature EmptyV = Empty._vararg;
+
         private StackSignature()
         {
         }

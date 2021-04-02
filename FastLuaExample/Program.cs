@@ -83,22 +83,20 @@ end
 ";
         public static void Main()
         {
-            var (sig0, _) = StackSignature.CreateUnspecialized(0);
             var (sig1, _) = StackSignature.CreateUnspecialized(1);
             var (sig2, _) = StackSignature.CreateUnspecialized(2);
-            var proto = new Proto
+            var proto2 = new Proto
             {
                 ChildFunctions = Array.Empty<Proto>(),
                 ConstantsU = new TypedValue[]
                 {
                     TypedValue.MakeDouble(1),
-                    TypedValue.MakeDouble(2),
                 },
                 SigDesc = new SignatureDesc[]
                 {
-                    sig2.GetDesc(),
+                    sig1.GetDesc(),
                 },
-                ParameterSig = sig0.GetDesc(),
+                ParameterSig = StackSignature.Empty.GetDesc(),
                 NumStackSize = 100,
                 ObjStackSize = 100,
                 LocalRegionOffsetO = 0,
@@ -108,23 +106,57 @@ end
                 SigRegionOffsetV = 10,
                 Instructions = new uint[]
                 {
-                    (uint)(Opcodes.K) << 24 | 10 << 16 | 0 << 8 | 0,
-                    (uint)(Opcodes.K) << 24 | 11 << 16 | 1 << 8 | 0,
-                    (uint)(Opcodes.ADD) << 24 | 12 << 16 | 10 << 8 | 11,
-                    (uint)(Opcodes.K) << 24 | 13 << 16 | 1 << 8 | 0,
-                    (uint)(Opcodes.RETN) << 24 | 0 << 16 | 12 << 8 | 12,
+                    (uint)(Opcodes.K) << 24 | 2 << 16 | 0 << 8 | 0, //local[2] = constant[0]
+                    (uint)(Opcodes.RETN) << 24 | 0 << 16 | 2 << 8 | 2, //return sig:0 (2,2)
                 },
             };
-            var closure = new LClosure
+            var closure2 = new LClosure
             {
-                Proto = proto,
+                Proto = proto2,
+                UpvalLists = Array.Empty<TypedValue[]>(),
+            };
+            var proto1 = new Proto
+            {
+                ChildFunctions = Array.Empty<Proto>(),
+                ConstantsU = new TypedValue[]
+                {
+                    TypedValue.MakeDouble(1),
+                    TypedValue.MakeDouble(2),
+                    TypedValue.MakeLClosure(closure2),
+                },
+                SigDesc = new SignatureDesc[]
+                {
+                    sig2.GetDesc(),
+                    StackSignature.Empty.GetDesc(),
+                    sig1.GetDesc(),
+                },
+                ParameterSig = StackSignature.Empty.GetDesc(),
+                NumStackSize = 100,
+                ObjStackSize = 100,
+                LocalRegionOffsetO = 0,
+                LocalRegionOffsetV = 0,
+                UpvalRegionOffset = 0,
+                SigRegionOffsetO = 10,
+                SigRegionOffsetV = 10,
+                Instructions = new uint[]
+                {
+                    (uint)(Opcodes.K) << 24 | 9 << 16 | 2 << 8 | 0, //local[9] = constant[2]
+                    (uint)(Opcodes.CALLC) << 24 | 9 << 16 | 1 << 8 | 2, //call local[9] sig: 1(sig0)->2(sig1) (10,10)
+                    (uint)(Opcodes.K) << 24 | 1 << 16 | 0 << 8 | 0, //local[1] = constant[0]
+                    (uint)(Opcodes.ADD) << 24 | 10 << 16 | 10 << 8 | 1, //add local[10] = local[10] + local[1]
+                    (uint)(Opcodes.RETN) << 24 | 2 << 16 | 10 << 8 | 10, //ret sig: 2(sig1) (10,10)
+                },
+            };
+            var closure1 = new LClosure
+            {
+                Proto = proto1,
                 UpvalLists = Array.Empty<TypedValue[]>(),
             };
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
             for (int i = 0; i < 100000; ++i)
             {
-                LuaInterpreter.Execute(thread, closure);
+                LuaInterpreter.Execute(thread, closure1);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);
         }

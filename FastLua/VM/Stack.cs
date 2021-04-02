@@ -97,7 +97,6 @@ namespace FastLua.VM
             ObjectFrame[uto] = ObjectFrame[ufrom];
         }
 
-        //Similar to TryAdjustSigBlockRight but adjust to empty sig (clear sig info).
         public void ClearSigBlock()
         {
             MetaData.SigVOLength = MetaData.SigVVLength = 0;
@@ -136,8 +135,8 @@ namespace FastLua.VM
             }
             else
             {
-                Debug.Assert(desc.SigFVLength > MetaData.SigDesc.SigFVLength);
-                Debug.Assert(desc.SigFOLength > MetaData.SigDesc.SigFOLength);
+                Debug.Assert(desc.SigFVLength >= MetaData.SigDesc.SigFVLength);
+                Debug.Assert(desc.SigFOLength >= MetaData.SigDesc.SigFOLength);
 
                 //Extend to left.
                 MetaData.SigNumberOffset -= desc.SigFVLength - MetaData.SigDesc.SigFVLength;
@@ -193,7 +192,7 @@ namespace FastLua.VM
 
         private void WriteVararg(List<TypedValue> storage, out int count)
         {
-            if (storage is null)
+            if (storage is null || !MetaData.SigDesc.SigType.Vararg.HasValue)
             {
                 count = 0;
                 return;
@@ -201,7 +200,7 @@ namespace FastLua.VM
             var vo = MetaData.SigDesc.HasVO;
             var vv = MetaData.SigDesc.HasVV;
             int start;
-            if (vo && vv)
+            if (vv && vo)
             {
                 //Unspecialized vararg.
                 Debug.Assert(MetaData.SigNumberOffset == MetaData.SigObjectOffset);
@@ -210,16 +209,16 @@ namespace FastLua.VM
                 start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
                 count = MetaData.SigVVLength;
             }
-            else if (vv)
+            else if (vo)
             {
-                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
-                count = MetaData.SigVVLength;
+                start = MetaData.SigObjectOffset + MetaData.SigDesc.SigFOLength;
+                count = MetaData.SigVOLength;
             }
             else
             {
-                Debug.Assert(vo);
-                start = MetaData.SigObjectOffset + MetaData.SigDesc.SigFOLength;
-                count = MetaData.SigVOLength;
+                Debug.Assert(vv);
+                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
+                count = MetaData.SigVVLength;
             }
             for (int i = 0; i < count; ++i)
             {
@@ -249,15 +248,7 @@ namespace FastLua.VM
         public int SigFOLength, SigFVLength; //Length of fixed part.
         public bool HasVO, HasVV;
 
-        public static readonly SignatureDesc Empty = new SignatureDesc
-        {
-            SigTypeId = 0,
-            SigType = null,
-            SigFOLength = 0,
-            SigFVLength = 0,
-            HasVO = false,
-            HasVV = false,
-        };
+        public static readonly SignatureDesc Empty = StackSignature.Empty.GetDesc();
 
         public SignatureDesc WithVararg(VMSpecializationType type)
         {
@@ -352,8 +343,9 @@ namespace FastLua.VM
             //TODO should check total length instead of numSize and objSize
             var argNSize = lastFrame.MetaData.SigTotalVLength;
             var argOSize = lastFrame.MetaData.SigTotalOLength;
-            var argN = lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset, argNSize);
-            var argO = lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset, argOSize);
+            //Include one more element at the beginning allows TryExtend to calculate starting point using span[0].
+            var argN = lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset - 1, argNSize + 1);
+            var argO = lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset - 1, argOSize + 1);
 
             if (!s.NumberStack.CheckSpace(numSize) || !s.ObjectStack.CheckSpace(objSize))
             {
@@ -426,8 +418,8 @@ namespace FastLua.VM
                     newSegment.ObjectStack.Reset(lastFrame.ObjectFrame);
 
                     s = newSegment;
-                    argN = lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset, argNSize);
-                    argO = lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset, argOSize);
+                    argN = lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset - 1, argNSize + 1);
+                    argO = lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset - 1, argOSize + 1);
                     //Fall through and allocate the new frame.
                 }
                 else
@@ -442,12 +434,12 @@ namespace FastLua.VM
                         });
                     }
                     s = _segments[_currentHead];
-                    var nframe = s.NumberStack.Push(numSize + argNSize); //TODO this may overflow
+                    var nframe = s.NumberStack.Push(numSize + argNSize);
                     var oframe = s.ObjectStack.Push(objSize + argOSize);
 
                     //Copy args from old frame.
-                    argN.CopyTo(nframe);
-                    argO.CopyTo(oframe);
+                    argN[1..].CopyTo(nframe);
+                    argO[1..].CopyTo(oframe);
                     return new StackFrame
                     {
                         Head = _currentHead,
@@ -455,29 +447,57 @@ namespace FastLua.VM
                         NumberFrame = nframe,
                         ObjectFrame = oframe,
                         OnSameSegment = onSameSeg,
+                        MetaData =
+                        {
+                            SigNumberOffset = 0,
+                            SigObjectOffset = 0,
+                            SigVOLength = lastFrame.MetaData.SigVOLength,
+                            SigVVLength = lastFrame.MetaData.SigVVLength,
+                            SigDesc = lastFrame.MetaData.SigDesc,
+                        },
                     };
                 }
             }
 
             //Enough space. Just grow.
             //Don't need to copy args. Use extend to allocate frame after the current one.
-            s.NumberStack.TryExtend(ref argN, argNSize + numSize);
-            s.ObjectStack.TryExtend(ref argO, argOSize + objSize);
+            s.NumberStack.TryExtend(ref argN, argNSize + numSize + 1);
+            s.ObjectStack.TryExtend(ref argO, argOSize + objSize + 1);
             return new StackFrame
             {
                 Head = _currentHead,
                 Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                NumberFrame = argN,
-                ObjectFrame = argO,
+                NumberFrame = argN[1..],
+                ObjectFrame = argO[1..],
                 OnSameSegment = onSameSeg,
+                MetaData =
+                {
+                    SigNumberOffset = 0,
+                    SigObjectOffset = 0,
+                    SigVOLength = lastFrame.MetaData.SigVOLength,
+                    SigVVLength = lastFrame.MetaData.SigVVLength,
+                    SigDesc = lastFrame.MetaData.SigDesc,
+                },
             };
         }
 
-        public void Deallocate(ref StackFrame lastFrame)
+        public void Deallocate(ref StackFrame frame)
         {
-            var s = _segments[(int)lastFrame.Head];
-            s.NumberStack.Pop(lastFrame.NumberFrame);
-            s.ObjectStack.Pop(lastFrame.ObjectFrame);
+            var s = _segments[(int)frame.Head];
+            if (frame.Last.Length == 0)
+            {
+                s.NumberStack.Clear();
+                s.ObjectStack.Clear();
+            }
+            else
+            {
+                unsafe
+                {
+                    ref StackFrame lastFrame = ref StackFrame.GetLast(ref frame.Last[0]);
+                    s.NumberStack.Reset(lastFrame.NumberFrame);
+                    s.ObjectStack.Reset(lastFrame.ObjectFrame);
+                }
+            }
         }
 
         private SerializedStackFrame SerializeFrameInternal(ref StackFrame frame)

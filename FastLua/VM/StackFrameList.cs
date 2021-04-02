@@ -47,14 +47,14 @@ namespace FastLua.VM
             return span;
         }
 
-        public void Pop(Span<T> span)
-        {
-            if (GetIndex(ref span[0]) + span.Length != _count)
-            {
-                throw new InvalidOperationException("Stack order check failed.");
-            }
-            _count -= span.Length;
-        }
+        //public void Pop(Span<T> span)
+        //{
+        //    if (GetIndex(ref span[0]) + span.Length != _count)
+        //    {
+        //        throw new InvalidOperationException("Stack order check failed.");
+        //    }
+        //    _count -= span.Length;
+        //}
 
         public void Clear()
         {
@@ -88,6 +88,7 @@ namespace FastLua.VM
                 return false;
             }
             span = MemoryMarshal.CreateSpan(ref span[0], newSize);
+            _count = GetIndex(ref span[0]) + span.Length;
             return true;
         }
 
