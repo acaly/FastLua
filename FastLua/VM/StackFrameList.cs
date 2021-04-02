@@ -9,7 +9,7 @@ namespace FastLua.VM
 {
     internal struct StackFrameList<T>
     {
-        private static readonly int _size = Marshal.SizeOf<T>();
+        private static readonly int _size = typeof(T).IsValueType ? Marshal.SizeOf<T>() : IntPtr.Size;
 
         private readonly T[] _data;
         private int _count;

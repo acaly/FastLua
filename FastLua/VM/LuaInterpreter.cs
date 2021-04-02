@@ -31,6 +31,7 @@ namespace FastLua.VM
                 VarargType = default,
             };
             InterpreterLoop_Template(0, thread, ref stack);
+            thread.Stack.Deallocate(ref stack);
         }
 
         private static partial void InterpreterLoop(int startPc, Thread thread, ref StackFrame stack);
@@ -38,7 +39,6 @@ namespace FastLua.VM
         [InlineSwitch(typeof(LuaInterpreter))]
         private static void InterpreterLoop_Template(int startPc, Thread thread, ref StackFrame stack)
         {
-            Console.WriteLine(123);
             var inst = stack.MetaData.Func.Instructions;
             var pc = startPc;
             int lastWriteO = 0, lastWriteV = 0;
@@ -543,6 +543,14 @@ namespace FastLua.VM
             }
             case Opcodes.RETN:
             {
+                //First execute SIG.
+                int a = (int)((ii >> 16) & 0xFF);
+                int b = (int)((ii >> 8) & 0xFF);
+                int c = (int)(ii & 0xFF);
+
+                stack.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b, c);
+
+                //Then return.
                 Span<object> retObj;
                 Span<double> retNum;
                 if (stack.Last.Length == 0)
@@ -576,11 +584,11 @@ namespace FastLua.VM
                 var vl = stack.MetaData.SigTotalVLength;
                 for (int i = 0; i < ol; ++i)
                 {
-                    retObj[i] = stack.ObjectFrame[stack.MetaData.SigObjectOffset];
+                    retObj[i] = stack.ObjectFrame[stack.MetaData.SigObjectOffset + i];
                 }
                 for (int i = 0; i < vl; ++i)
                 {
-                    retNum[i] = stack.NumberFrame[stack.MetaData.SigNumberOffset];
+                    retNum[i] = stack.NumberFrame[stack.MetaData.SigNumberOffset + i];
                 }
                 return;
             }

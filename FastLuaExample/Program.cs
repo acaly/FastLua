@@ -85,6 +85,7 @@ end
         {
             var (sig0, _) = StackSignature.CreateUnspecialized(0);
             var (sig1, _) = StackSignature.CreateUnspecialized(1);
+            var (sig2, _) = StackSignature.CreateUnspecialized(2);
             var proto = new Proto
             {
                 ChildFunctions = Array.Empty<Proto>(),
@@ -95,7 +96,7 @@ end
                 },
                 SigDesc = new SignatureDesc[]
                 {
-                    sig1.GetDesc(),
+                    sig2.GetDesc(),
                 },
                 ParameterSig = sig0.GetDesc(),
                 NumStackSize = 100,
@@ -110,8 +111,8 @@ end
                     (uint)(Opcodes.K) << 24 | 10 << 16 | 0 << 8 | 0,
                     (uint)(Opcodes.K) << 24 | 11 << 16 | 1 << 8 | 0,
                     (uint)(Opcodes.ADD) << 24 | 12 << 16 | 10 << 8 | 11,
-                    (uint)(Opcodes.SIG) << 24 | 0 << 16 | 12 << 8 | 12,
-                    (uint)(Opcodes.RETN) << 24,
+                    (uint)(Opcodes.K) << 24 | 13 << 16 | 1 << 8 | 0,
+                    (uint)(Opcodes.RETN) << 24 | 0 << 16 | 12 << 8 | 12,
                 },
             };
             var closure = new LClosure
@@ -120,7 +121,12 @@ end
                 UpvalLists = Array.Empty<TypedValue[]>(),
             };
             var thread = new Thread();
-            LuaInterpreter.Execute(thread, closure);
+            var clock = Stopwatch.StartNew();
+            for (int i = 0; i < 100000; ++i)
+            {
+                LuaInterpreter.Execute(thread, closure);
+            }
+            Console.WriteLine(clock.ElapsedMilliseconds);
         }
 
         public static void AST()
