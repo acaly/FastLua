@@ -24,7 +24,6 @@ namespace FastLua.VM
         public int ObjectFrameStartIndex;
 
         public StackMetaData MetaData;
-        public bool OnSameSegment;
 
         private static ref nint GetLastImpl(ref nint x) => ref x;
         public static readonly delegate*<ref nint, ref StackFrame> GetLast =
@@ -140,6 +139,8 @@ namespace FastLua.VM
         public int VarargStart;
         public int VarargLength;
         public VMSpecializationType VarargType;
+
+        public bool OnSameSegment;
     }
 
     internal struct SerializedStackFrame
@@ -209,7 +210,7 @@ namespace FastLua.VM
                     Span<nint> iter = lastFrame.Last;
                     int numOffsetOnOldSeg = lastFrame.NumberFrameStartIndex;
                     int objOffsetOnOldSeg = lastFrame.ObjectFrameStartIndex;
-                    if (lastFrame.OnSameSegment)
+                    if (lastFrame.MetaData.OnSameSegment)
                     {
                         while (true)
                         {
@@ -218,7 +219,7 @@ namespace FastLua.VM
                                 ref var f = ref StackFrame.GetLast(ref iter[0]);
                                 Debug.Assert((int)f.Head == newHead);
                                 iter = f.Last;
-                                if (!f.OnSameSegment || iter.Length == 0)
+                                if (!f.MetaData.OnSameSegment || iter.Length == 0)
                                 {
                                     numOffsetOnOldSeg = f.NumberFrameStartIndex;
                                     objOffsetOnOldSeg = f.ObjectFrameStartIndex;
@@ -246,7 +247,7 @@ namespace FastLua.VM
 
                     //Iterate and fix all frames.
                     iter = lastFrame.Last;
-                    if (lastFrame.OnSameSegment)
+                    if (lastFrame.MetaData.OnSameSegment)
                     {
                         while (iter.Length > 0)
                         {
@@ -260,7 +261,7 @@ namespace FastLua.VM
                                 f.NumberFrame = newSegment.NumberStack.AsSpan()
                                     .Slice(f.NumberFrameStartIndex, f.NumberFrame.Length);
 
-                                if (!f.OnSameSegment) break;
+                                if (!f.MetaData.OnSameSegment) break;
                                 iter = f.Last;
                             }
                         }
@@ -295,7 +296,10 @@ namespace FastLua.VM
                         Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
                         NumberFrame = nframe,
                         ObjectFrame = oframe,
-                        OnSameSegment = onSameSeg,
+                        MetaData =
+                        {
+                            OnSameSegment = onSameSeg,
+                        },
                     };
                 }
             }
@@ -312,7 +316,10 @@ namespace FastLua.VM
                 ObjectFrameStartIndex = newOStart,
                 NumberFrame = MemoryMarshal.CreateSpan(ref s.NumberStack[newNStart], newNSize),
                 ObjectFrame = MemoryMarshal.CreateSpan(ref s.ObjectStack[newOStart], newOSize),
-                OnSameSegment = onSameSeg,
+                MetaData =
+                {
+                    OnSameSegment = onSameSeg,
+                },
             };
         }
 
@@ -356,6 +363,8 @@ namespace FastLua.VM
                 Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
                 NumberFrame = s.NumberFrame.AsSpan(),
                 ObjectFrame = s.ObjectFrame.AsSpan(),
+                NumberFrameStartIndex = s.NumberFrame.Offset,
+                ObjectFrameStartIndex = s.ObjectFrame.Offset,
                 MetaData = s.MetaData,
             };
             return true;
