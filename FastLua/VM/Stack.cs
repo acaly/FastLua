@@ -98,149 +98,6 @@ namespace FastLua.VM
             NumberFrame[uto] = NumberFrame[ufrom];
             ObjectFrame[uto] = ObjectFrame[ufrom];
         }
-
-        public void ClearSigBlock()
-        {
-            MetaData.SigVOLength = MetaData.SigVVLength = 0;
-            MetaData.SigDesc = SignatureDesc.Empty;
-        }
-
-        public void SetSigBlock(ref SignatureDesc desc, int o, int v)
-        {
-            MetaData.SigObjectOffset = o;
-            MetaData.SigNumberOffset = v;
-            MetaData.SigVOLength = 0;
-            MetaData.SigVVLength = 0;
-            MetaData.SigDesc = desc;
-        }
-
-        //Used by callee to add return values. This list will be checked and adjusted
-        //again using TryAdjustSigBlockRight.
-        public void ReplaceSigBlock(ref StackMetaData meta)
-        {
-            MetaData.SigDesc = meta.SigDesc;
-            MetaData.SigVVLength = meta.SigVVLength;
-            MetaData.SigVOLength = meta.SigVOLength;
-        }
-
-        //Adjust sig block. This operation handles sig block generated inside the same function
-        //so it should never fail (or it's a program error), and we don't really need to check.
-        public void ResizeSigBlockLeft(ref SignatureDesc desc, int o, int v)
-        {
-            if (MetaData.SigDesc.SigTypeId == 0)
-            {
-                //New sig block at given place.
-                //Note that the (o,v) is the last item (inclusive) in the block.
-                MetaData.SigObjectOffset = o - desc.SigFOLength;
-                MetaData.SigNumberOffset = v - desc.SigFVLength;
-                MetaData.SigDesc = desc;
-            }
-            else
-            {
-                Debug.Assert(desc.SigFVLength >= MetaData.SigDesc.SigFVLength);
-                Debug.Assert(desc.SigFOLength >= MetaData.SigDesc.SigFOLength);
-
-                //Extend to left.
-                MetaData.SigNumberOffset -= desc.SigFVLength - MetaData.SigDesc.SigFVLength;
-                MetaData.SigObjectOffset -= desc.SigFOLength - MetaData.SigDesc.SigFOLength;
-                MetaData.SigDesc = desc;
-            }
-            //Don't clear vv and vo length.
-        }
-
-        //Adjust the sig block with given type without changing its starting position.
-        //If varargStorage is not null, copy the vararg part to the separate list.
-        public bool TryAdjustSigBlockRight(ref SignatureDesc desc, List<TypedValue> varargStorage, out int varargCount)
-        {
-            if (desc.SigTypeId == MetaData.SigDesc.SigTypeId)
-            {
-                //Same type.
-                WriteVararg(varargStorage, out varargCount);
-                return true;
-            }
-            if (!MetaData.SigDesc.SigType.IsCompatibleWith(desc.SigTypeId))
-            {
-                //Not compatible.
-                if (!desc.SigType.IsUnspecialized)
-                {
-                    //Target is not unspecialized. We can do nothing here.
-                    varargCount = 0;
-                    return false;
-                }
-
-                //Target is unspecialized. We can make them compatible.
-                Debug.Assert(!MetaData.SigDesc.SigType.IsUnspecialized);
-                MetaData.SigDesc.SigType.AdjustStackToUnspecialized();
-            }
-
-            var diffO = desc.SigFOLength - MetaData.SigDesc.SigFOLength;
-            var diffV = desc.SigFVLength - MetaData.SigDesc.SigFVLength;
-
-            //Fill nils if necessary.
-            if (diffO > 0)
-            {
-                ObjectFrame.Slice(MetaData.SigObjectOffset + MetaData.SigTotalOLength, diffO).Clear();
-            }
-            if (diffV > 0)
-            {
-                NumberFrame.Slice(MetaData.SigNumberOffset + MetaData.SigTotalVLength, diffV).Fill(TypedValue.Nil.Number);
-            }
-            MetaData.SigDesc = desc;
-            MetaData.SigVOLength -= diffO; //Update variant part length for WriteVararg to work properly.
-            MetaData.SigVVLength -= diffV;
-            WriteVararg(varargStorage, out varargCount);
-            return true;
-        }
-
-        private void WriteVararg(List<TypedValue> storage, out int count)
-        {
-            if (storage is null || !MetaData.SigDesc.SigType.Vararg.HasValue)
-            {
-                count = 0;
-                return;
-            }
-            var vo = MetaData.SigDesc.HasVO;
-            var vv = MetaData.SigDesc.HasVV;
-            int start;
-            if (vv && vo)
-            {
-                //Unspecialized vararg.
-                Debug.Assert(MetaData.SigNumberOffset == MetaData.SigObjectOffset);
-                Debug.Assert(MetaData.SigDesc.SigFVLength == MetaData.SigDesc.SigFOLength);
-                Debug.Assert(MetaData.SigVOLength == MetaData.SigVVLength);
-                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
-                count = MetaData.SigVVLength;
-            }
-            else if (vo)
-            {
-                start = MetaData.SigObjectOffset + MetaData.SigDesc.SigFOLength;
-                count = MetaData.SigVOLength;
-            }
-            else
-            {
-                Debug.Assert(vv);
-                start = MetaData.SigNumberOffset + MetaData.SigDesc.SigFVLength;
-                count = MetaData.SigVVLength;
-            }
-            for (int i = 0; i < count; ++i)
-            {
-                storage.Add(new TypedValue
-                {
-                    Number = NumberFrame[start + i],
-                    Object = null,
-                });
-            }
-        }
-
-        public void AppendVarargSig(VMSpecializationType type, int count)
-        {
-            //There can only be one vararg block.
-            Debug.Assert(MetaData.SigVOLength == 0 && MetaData.SigVVLength == 0);
-            MetaData.SigDesc = MetaData.SigDesc.WithVararg(type);
-            var (v, o) = type.GetStorageType();
-            if (v) MetaData.SigVVLength = count;
-            if (o) MetaData.SigVOLength = count;
-        }
     }
 
     internal struct SignatureDesc
@@ -250,6 +107,7 @@ namespace FastLua.VM
         public int SigFOLength, SigFVLength; //Length of fixed part.
         public bool HasVO, HasVV;
 
+        public static readonly SignatureDesc Null = StackSignature.Null.GetDesc();
         public static readonly SignatureDesc Empty = StackSignature.Empty.GetDesc();
 
         public SignatureDesc WithVararg(VMSpecializationType type)
@@ -276,18 +134,6 @@ namespace FastLua.VM
     internal struct StackMetaData
     {
         public Proto Func;
-
-        //Signature region.
-
-        public SignatureDesc SigDesc;
-
-        public int SigNumberOffset; //Start of sig block.
-        public int SigObjectOffset;
-        public int SigVOLength; //Length of vararg part.
-        public int SigVVLength;
-
-        public int SigTotalOLength => SigDesc.SigFOLength + SigVOLength;
-        public int SigTotalVLength => SigDesc.SigFVLength + SigVVLength;
 
         //Storage of the function vararg list (in VM's state.VarargStack).
 
@@ -332,7 +178,7 @@ namespace FastLua.VM
             };
         }
 
-        public StackFrame Allocate(ref StackFrame lastFrame, int numSize, int objSize, bool onSameSeg)
+        public StackFrame Allocate(Thread thread, ref StackFrame lastFrame, int numSize, int objSize, bool onSameSeg)
         {
             Debug.Assert(numSize < Options.MaxSingleFunctionStackSize);
             Debug.Assert(objSize < Options.MaxSingleFunctionStackSize);
@@ -340,10 +186,10 @@ namespace FastLua.VM
 
             var s = _segments[(int)lastFrame.Head];
 
-            var newNStart = lastFrame.NumberFrameStartIndex + lastFrame.MetaData.SigNumberOffset;
-            var newOStart = lastFrame.ObjectFrameStartIndex + lastFrame.MetaData.SigObjectOffset;
-            var newNSize = lastFrame.MetaData.SigTotalVLength + numSize;
-            var newOSize = lastFrame.MetaData.SigTotalOLength + objSize;
+            var newNStart = lastFrame.NumberFrameStartIndex + thread.SigNumberOffset;
+            var newOStart = lastFrame.ObjectFrameStartIndex + thread.SigObjectOffset;
+            var newNSize = thread.SigTotalVLength + numSize;
+            var newOSize = thread.SigTotalOLength + objSize;
 
             var newHead = lastFrame.Head;
             
@@ -439,10 +285,10 @@ namespace FastLua.VM
                     var oframe = s.ObjectStack.AsSpan()[0..newOSize];
 
                     //Copy args from old frame.
-                    var argNSize = lastFrame.MetaData.SigTotalVLength;
-                    var argOSize = lastFrame.MetaData.SigTotalOLength;
-                    lastFrame.NumberFrame.Slice(lastFrame.MetaData.SigNumberOffset, argNSize).CopyTo(nframe);
-                    lastFrame.ObjectFrame.Slice(lastFrame.MetaData.SigObjectOffset, argOSize).CopyTo(oframe);
+                    var argNSize = thread.SigTotalVLength;
+                    var argOSize = thread.SigTotalOLength;
+                    lastFrame.NumberFrame.Slice(thread.SigNumberOffset, argNSize).CopyTo(nframe);
+                    lastFrame.ObjectFrame.Slice(thread.SigObjectOffset, argOSize).CopyTo(oframe);
                     return new StackFrame
                     {
                         Head = newHead,
@@ -450,14 +296,6 @@ namespace FastLua.VM
                         NumberFrame = nframe,
                         ObjectFrame = oframe,
                         OnSameSegment = onSameSeg,
-                        MetaData =
-                        {
-                            SigNumberOffset = 0,
-                            SigObjectOffset = 0,
-                            SigVOLength = lastFrame.MetaData.SigVOLength,
-                            SigVVLength = lastFrame.MetaData.SigVVLength,
-                            SigDesc = lastFrame.MetaData.SigDesc,
-                        },
                     };
                 }
             }
@@ -475,14 +313,6 @@ namespace FastLua.VM
                 NumberFrame = MemoryMarshal.CreateSpan(ref s.NumberStack[newNStart], newNSize),
                 ObjectFrame = MemoryMarshal.CreateSpan(ref s.ObjectStack[newOStart], newOSize),
                 OnSameSegment = onSameSeg,
-                MetaData =
-                {
-                    SigNumberOffset = 0,
-                    SigObjectOffset = 0,
-                    SigVOLength = lastFrame.MetaData.SigVOLength,
-                    SigVVLength = lastFrame.MetaData.SigVVLength,
-                    SigDesc = lastFrame.MetaData.SigDesc,
-                },
             };
         }
 

@@ -19,6 +19,14 @@ namespace FastLua.VM
         public VMSpecializationType? Vararg { get; private init; }
         public bool IsUnspecialized { get; private init; }
 
+        public static readonly StackSignature Null = new()
+        {
+            _vararg = null,
+            GlobalId = 0,
+            Fixed = ImmutableArray<VMSpecializationType>.Empty,
+            Vararg = null,
+            IsUnspecialized = true,
+        };
         public static readonly StackSignature Empty = CreateUnspecialized(0).novararg;
         public static readonly StackSignature EmptyV = Empty._vararg;
 
@@ -57,7 +65,7 @@ namespace FastLua.VM
         //length is enough.
         public bool IsCompatibleWith(ulong id)
         {
-            return _compatibleSignatures.Contains(id);
+            return id == 0 || _compatibleSignatures.Contains(id);
         }
 
         public void AdjustStackToUnspecialized()

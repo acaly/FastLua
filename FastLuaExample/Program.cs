@@ -155,13 +155,10 @@ end
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
             var stack = thread.Stack.Allocate(20, 20);
-            stack.MetaData = new StackMetaData
-            {
-                SigDesc = StackSignature.Empty.GetDesc(),
-            };
+            var emptySig = SignatureDesc.Empty;
             for (int i = 0; i < 10000000; ++i)
             {
-                stack.ClearSigBlock();
+                thread.SetSigBlock(ref emptySig, 0, 0);
                 LuaInterpreter.Execute(thread, closure1, ref stack);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);
