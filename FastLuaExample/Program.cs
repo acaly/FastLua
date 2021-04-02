@@ -81,6 +81,7 @@ return function()
     return self
 end
 ";
+
         public static void Main()
         {
             var (sig1, _) = StackSignature.CreateUnspecialized(1);
@@ -97,17 +98,14 @@ end
                     sig1.GetDesc(),
                 },
                 ParameterSig = StackSignature.Empty.GetDesc(),
-                NumStackSize = 100,
-                ObjStackSize = 100,
-                LocalRegionOffsetO = 0,
-                LocalRegionOffsetV = 0,
+                StackSize = 1,
+                LocalRegionOffset = 0,
                 UpvalRegionOffset = 0,
-                SigRegionOffsetO = 10,
-                SigRegionOffsetV = 10,
+                SigRegionOffset = 0,
                 Instructions = new uint[]
                 {
-                    (uint)(Opcodes.K) << 24 | 2 << 16 | 0 << 8 | 0, //local[2] = constant[0]
-                    (uint)(Opcodes.RETN) << 24 | 0 << 16 | 2 << 8 | 2, //return sig:0 (2,2)
+                    (uint)(Opcodes.K_D) << 24 | 0 << 16 | 0 << 8 | 0, //local[0] = constant[0]
+                    (uint)(Opcodes.RETN) << 24 | 0 << 16 | 0 << 8, //return sig:0 (0)
                 },
             };
             var closure2 = new LClosure
@@ -131,20 +129,17 @@ end
                     sig1.GetDesc(),
                 },
                 ParameterSig = StackSignature.Empty.GetDesc(),
-                NumStackSize = 100,
-                ObjStackSize = 100,
-                LocalRegionOffsetO = 0,
-                LocalRegionOffsetV = 0,
+                StackSize = 2,
+                LocalRegionOffset = 0,
                 UpvalRegionOffset = 0,
-                SigRegionOffsetO = 10,
-                SigRegionOffsetV = 10,
+                SigRegionOffset = 1,
                 Instructions = new uint[]
                 {
-                    (uint)(Opcodes.K) << 24 | 9 << 16 | 2 << 8 | 0, //local[9] = constant[2]
-                    (uint)(Opcodes.CALLC) << 24 | 9 << 16 | 1 << 8 | 2, //call local[9] sig: 1(sig0)->2(sig1) (10,10)
-                    (uint)(Opcodes.K) << 24 | 1 << 16 | 1 << 8 | 0, //local[1] = constant[1]
-                    (uint)(Opcodes.ADD) << 24 | 10 << 16 | 10 << 8 | 1, //add local[10] = local[10] + local[1]
-                    (uint)(Opcodes.RETN) << 24 | 2 << 16 | 10 << 8 | 10, //ret sig: 2(sig1) (10,10)
+                    (uint)(Opcodes.K) << 24 | 0 << 16 | 2 << 8, //local[0] = constant[2]
+                    (uint)(Opcodes.CALLC) << 24 | 0 << 16 | 1 << 8 | 2, //call local[0] sig: 1(sig0)->2(sig1) (1)
+                    (uint)(Opcodes.K_D) << 24 | 0 << 16 | 1 << 8, //local[0] = constant[1]
+                    (uint)(Opcodes.ADD_D) << 24 | 0 << 16 | 0 << 8 | 1, //add local[0] = local[0] + local[1]
+                    (uint)(Opcodes.RETN) << 24 | 2 << 16 | 0 << 8, //ret sig: 2(sig1) (0)
                 },
             };
             var closure1 = new LClosure
@@ -154,11 +149,11 @@ end
             };
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
-            var stack = thread.Stack.Allocate(20, 20);
+            var stack = thread.Stack.Allocate(1);
             var emptySig = SignatureDesc.Empty;
             for (int i = 0; i < 10000000; ++i)
             {
-                thread.SetSigBlock(ref emptySig, 0, 0);
+                thread.SetSigBlock(ref emptySig, 0);
                 LuaInterpreter.Execute(thread, closure1, ref stack);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);

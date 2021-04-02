@@ -9,8 +9,7 @@ namespace FastLua.VM
 {
     internal sealed class StackSegment
     {
-        public double[] NumberStack;
-        public object[] ObjectStack;
+        public TypedValue[] ValueStack;
     }
 
     internal unsafe ref struct StackFrame
@@ -18,10 +17,8 @@ namespace FastLua.VM
         //In order for the linked list to work. This also stores index of StackSegment.
         public nint Head;
         public Span<nint> Last; //Last StackFrame's Head field.
-        public Span<double> NumberFrame;
-        public Span<object> ObjectFrame;
-        public int NumberFrameStartIndex;
-        public int ObjectFrameStartIndex;
+        public Span<TypedValue> ValueFrame;
+        public int ValueFrameStartIndex;
 
         public StackMetaData MetaData;
 
@@ -33,7 +30,7 @@ namespace FastLua.VM
 
         public VMSpecializationType GetTypeU(int u)
         {
-            var d = BitConverter.DoubleToInt64Bits(NumberFrame[u]);
+            var d = BitConverter.DoubleToInt64Bits(ValueFrame[u].Number);
             if ((d & TypedValue.NNMaskL) == TypedValue.NNMarkL)
             {
                 return (VMSpecializationType)((d >> 32) & 0xFF);
@@ -43,22 +40,22 @@ namespace FastLua.VM
 
         public int GetIntU(int u)
         {
-            return (int)(uint)((ulong)BitConverter.DoubleToInt64Bits(NumberFrame[u]) & 0xFFFFFFFF);
+            return (int)(uint)((ulong)BitConverter.DoubleToInt64Bits(ValueFrame[u].Number) & 0xFFFFFFFF);
         }
 
         public double GetDoubleU(int u)
         {
-            return NumberFrame[u];
+            return ValueFrame[u].Number;
         }
 
         public string GetStringU(int u)
         {
-            return (string)ObjectFrame[u];
+            return (string)ValueFrame[u].Object;
         }
 
         public bool ToBoolU(int u)
         {
-            var d = BitConverter.DoubleToInt64Bits(NumberFrame[u]);
+            var d = BitConverter.DoubleToInt64Bits(ValueFrame[u].Number);
             return (d >> 32) switch
             {
                 (TypedValue.NNMark | (int)VMSpecializationType.Nil) => false,
@@ -69,33 +66,12 @@ namespace FastLua.VM
 
         public TypedValue GetUpvalOU(int o, int index)
         {
-            return ((TypedValue[])ObjectFrame[o])[index];
+            return ((TypedValue[])ValueFrame[o].Object)[index];
         }
 
         public void SetUpvalOU(int o, int index, TypedValue uval)
         {
-            ((TypedValue[])ObjectFrame[o])[index] = uval;
-        }
-
-        public TypedValue GetU(int u)
-        {
-            return new TypedValue
-            {
-                Number = NumberFrame[u],
-                Object = ObjectFrame[u],
-            };
-        }
-
-        public void SetU(int u, TypedValue val)
-        {
-            NumberFrame[u] = val.Number;
-            ObjectFrame[u] = val.Object;
-        }
-
-        public void CopyUU(int ufrom, int uto)
-        {
-            NumberFrame[uto] = NumberFrame[ufrom];
-            ObjectFrame[uto] = ObjectFrame[ufrom];
+            ((TypedValue[])ValueFrame[o].Object)[index] = uval;
         }
     }
 
@@ -103,15 +79,15 @@ namespace FastLua.VM
     {
         public ulong SigTypeId;
         public StackSignature SigType;
-        public int SigFOLength, SigFVLength; //Length of fixed part.
-        public bool HasVO, HasVV;
+        public int SigFLength; //Length of fixed part.
+        public bool HasV;
 
         public static readonly SignatureDesc Null = StackSignature.Null.GetDesc();
         public static readonly SignatureDesc Empty = StackSignature.Empty.GetDesc();
 
         public SignatureDesc WithVararg(VMSpecializationType type)
         {
-            if (HasVV || HasVO)
+            if (HasV)
             {
                 throw new InvalidOperationException();
             }
@@ -121,10 +97,8 @@ namespace FastLua.VM
             {
                 SigTypeId = sig.GlobalId,
                 SigType = sig,
-                SigFOLength = SigFOLength,
-                SigFVLength = SigFVLength,
-                HasVO = vo,
-                HasVV = vv,
+                SigFLength = SigFLength,
+                HasV = vo || vv,
             };
         }
     }
@@ -146,8 +120,7 @@ namespace FastLua.VM
     internal struct SerializedStackFrame
     {
         public int Head;
-        public ArraySegment<double> NumberFrame;
-        public ArraySegment<object> ObjectFrame;
+        public ArraySegment<TypedValue> ValueFrame;
         public StackMetaData MetaData;
     }
 
@@ -160,42 +133,34 @@ namespace FastLua.VM
         {
             _segments.Add(new()
             {
-                NumberStack = new double[Options.StackSegmentSize],
-                ObjectStack = new object[Options.StackSegmentSize],
+                ValueStack = new TypedValue[Options.StackSegmentSize],
             });
         }
 
-        public StackFrame Allocate(int numSize, int objSize)
+        public StackFrame Allocate(int size)
         {
-            Debug.Assert(numSize < Options.MaxSingleFunctionStackSize);
-            Debug.Assert(objSize < Options.MaxSingleFunctionStackSize);
+            Debug.Assert(size < Options.MaxSingleFunctionStackSize);
             var s = _segments[0];
             return new StackFrame
             {
                 Head = 0,
                 Last = default,
-                NumberFrame = s.NumberStack.AsSpan()[0..numSize],
-                ObjectFrame = s.ObjectStack.AsSpan()[0..objSize],
+                ValueFrame = s.ValueStack.AsSpan()[0..size],
             };
         }
 
-        public StackFrame Allocate(Thread thread, ref StackFrame lastFrame, int numSize, int objSize, bool onSameSeg)
+        public StackFrame Allocate(Thread thread, ref StackFrame lastFrame, int size, bool onSameSeg)
         {
-            Debug.Assert(numSize < Options.MaxSingleFunctionStackSize);
-            Debug.Assert(objSize < Options.MaxSingleFunctionStackSize);
-            //Debug.Assert(_currentHead == (int)lastFrame.Head);
+            Debug.Assert(size < Options.MaxSingleFunctionStackSize);
 
             var s = _segments[(int)lastFrame.Head];
 
-            var newNStart = lastFrame.NumberFrameStartIndex + thread.SigNumberOffset;
-            var newOStart = lastFrame.ObjectFrameStartIndex + thread.SigObjectOffset;
-            var newNSize = thread.SigTotalVLength + numSize;
-            var newOSize = thread.SigTotalOLength + objSize;
+            var newStart = lastFrame.ValueFrameStartIndex + thread.SigOffset;
+            var newSize = thread.SigTotalLength + size;
 
             var newHead = lastFrame.Head;
             
-            if (s.NumberStack.Length < newNStart + numSize ||
-                s.ObjectStack.Length < newOStart + objSize)
+            if (s.ValueStack.Length < newStart + newSize)
             {
                 if (onSameSeg)
                 {
@@ -208,8 +173,7 @@ namespace FastLua.VM
                     //We assume that each frame actually only requires the space up to its sig offset.
                     //This is ensured by the current calling convension.
                     Span<nint> iter = lastFrame.Last;
-                    int numOffsetOnOldSeg = lastFrame.NumberFrameStartIndex;
-                    int objOffsetOnOldSeg = lastFrame.ObjectFrameStartIndex;
+                    int offsetOnOldSeg = lastFrame.ValueFrameStartIndex;
                     if (lastFrame.MetaData.OnSameSegment)
                     {
                         while (true)
@@ -221,29 +185,23 @@ namespace FastLua.VM
                                 iter = f.Last;
                                 if (!f.MetaData.OnSameSegment || iter.Length == 0)
                                 {
-                                    numOffsetOnOldSeg = f.NumberFrameStartIndex;
-                                    objOffsetOnOldSeg = f.ObjectFrameStartIndex;
+                                    offsetOnOldSeg = f.ValueFrameStartIndex;
                                     break;
                                 }
                             }
                         }
                     }
-                    newNStart -= numOffsetOnOldSeg;
-                    newOStart -= objOffsetOnOldSeg;
-                    var totalNewNumSize = newNStart + newNSize + Options.MaxSingleFunctionStackSize;
-                    var totalNewObjSize = newOStart + newOSize + Options.MaxSingleFunctionStackSize;
-                    totalNewNumSize = Math.Max(totalNewNumSize, Options.StackSegmentSize);
-                    totalNewObjSize = Math.Max(totalNewNumSize, Options.StackSegmentSize);
+                    newStart -= offsetOnOldSeg;
+                    var totalNewSize = newStart + newSize + Options.MaxSingleFunctionStackSize;
+                    totalNewSize = Math.Max(totalNewSize, Options.StackSegmentSize);
 
                     //Allocate new segment.
                     var newSegment = new StackSegment
                     {
-                        NumberStack = new double[totalNewNumSize],
-                        ObjectStack = new object[totalNewObjSize],
+                        ValueStack = new TypedValue[totalNewSize],
                     };
                     _segments[(int)newHead] = newSegment;
-                    s.NumberStack.CopyTo(newSegment.NumberStack.AsSpan());
-                    s.ObjectStack.CopyTo(newSegment.ObjectStack.AsSpan());
+                    s.ValueStack.CopyTo(newSegment.ValueStack.AsSpan());
 
                     //Iterate and fix all frames.
                     iter = lastFrame.Last;
@@ -254,12 +212,9 @@ namespace FastLua.VM
                             unsafe
                             {
                                 ref var f = ref StackFrame.GetLast(ref iter[0]);
-                                f.ObjectFrameStartIndex -= objOffsetOnOldSeg;
-                                f.NumberFrameStartIndex -= numOffsetOnOldSeg;
-                                f.ObjectFrame = newSegment.ObjectStack.AsSpan()
-                                    .Slice(f.ObjectFrameStartIndex, f.ObjectFrame.Length);
-                                f.NumberFrame = newSegment.NumberStack.AsSpan()
-                                    .Slice(f.NumberFrameStartIndex, f.NumberFrame.Length);
+                                f.ValueFrameStartIndex -= offsetOnOldSeg;
+                                f.ValueFrame = newSegment.ValueStack.AsSpan()
+                                    .Slice(f.ValueFrameStartIndex, f.ValueFrame.Length);
 
                                 if (!f.MetaData.OnSameSegment) break;
                                 iter = f.Last;
@@ -277,25 +232,20 @@ namespace FastLua.VM
                     {
                         _segments.Add(new()
                         {
-                            NumberStack = new double[Options.StackSegmentSize],
-                            ObjectStack = new object[Options.StackSegmentSize],
+                            ValueStack = new TypedValue[Options.StackSegmentSize],
                         });
                     }
                     s = _segments[(int)newHead];
-                    var nframe = s.NumberStack.AsSpan()[0..newNSize];
-                    var oframe = s.ObjectStack.AsSpan()[0..newOSize];
+                    var frame = s.ValueStack.AsSpan()[0..newSize];
 
                     //Copy args from old frame.
-                    var argNSize = thread.SigTotalVLength;
-                    var argOSize = thread.SigTotalOLength;
-                    lastFrame.NumberFrame.Slice(thread.SigNumberOffset, argNSize).CopyTo(nframe);
-                    lastFrame.ObjectFrame.Slice(thread.SigObjectOffset, argOSize).CopyTo(oframe);
+                    var argSize = thread.SigTotalLength;
+                    lastFrame.ValueFrame.Slice(thread.SigOffset, argSize).CopyTo(frame);
                     return new StackFrame
                     {
                         Head = newHead,
                         Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                        NumberFrame = nframe,
-                        ObjectFrame = oframe,
+                        ValueFrame = frame,
                         MetaData =
                         {
                             OnSameSegment = onSameSeg,
@@ -312,10 +262,8 @@ namespace FastLua.VM
             {
                 Head = newHead,
                 Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                NumberFrameStartIndex = newNStart,
-                ObjectFrameStartIndex = newOStart,
-                NumberFrame = MemoryMarshal.CreateSpan(ref s.NumberStack[newNStart], newNSize),
-                ObjectFrame = MemoryMarshal.CreateSpan(ref s.ObjectStack[newOStart], newOSize),
+                ValueFrameStartIndex = newStart,
+                ValueFrame = MemoryMarshal.CreateSpan(ref s.ValueStack[newStart], newSize),
                 MetaData =
                 {
                     OnSameSegment = onSameSeg,
@@ -329,8 +277,7 @@ namespace FastLua.VM
             return new SerializedStackFrame
             {
                 Head = (int)frame.Head,
-                NumberFrame = new(seg.NumberStack, frame.NumberFrameStartIndex, frame.NumberFrame.Length),
-                ObjectFrame = new(seg.ObjectStack, frame.ObjectFrameStartIndex, frame.ObjectFrame.Length),
+                ValueFrame = new(seg.ValueStack, frame.ValueFrameStartIndex, frame.ValueFrame.Length),
                 MetaData = frame.MetaData,
             };
         }
@@ -361,10 +308,8 @@ namespace FastLua.VM
             {
                 Head = s.Head,
                 Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                NumberFrame = s.NumberFrame.AsSpan(),
-                ObjectFrame = s.ObjectFrame.AsSpan(),
-                NumberFrameStartIndex = s.NumberFrame.Offset,
-                ObjectFrameStartIndex = s.ObjectFrame.Offset,
+                ValueFrame = s.ValueFrame.AsSpan(),
+                ValueFrameStartIndex = s.ValueFrame.Offset,
                 MetaData = s.MetaData,
             };
             return true;

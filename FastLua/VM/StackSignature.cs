@@ -15,7 +15,8 @@ namespace FastLua.VM
         private StackSignature _vararg { get; init; }
 
         public ulong GlobalId { get; private init; }
-        public ImmutableArray<VMSpecializationType> Fixed { get; private init; }
+        public ImmutableArray<(VMSpecializationType type, int slot)> ElementInfo { get; private init; }
+        public ImmutableArray<(int o, int v)> SlotInfo { get; private init; }
         public VMSpecializationType? Vararg { get; private init; }
         public bool IsUnspecialized { get; private init; }
 
@@ -23,7 +24,8 @@ namespace FastLua.VM
         {
             _vararg = null,
             GlobalId = 0,
-            Fixed = ImmutableArray<VMSpecializationType>.Empty,
+            ElementInfo = ImmutableArray<(VMSpecializationType, int)>.Empty,
+            SlotInfo = ImmutableArray<(int, int)>.Empty,
             Vararg = null,
             IsUnspecialized = true,
         };
@@ -42,10 +44,8 @@ namespace FastLua.VM
                 {
                     SigType = this,
                     SigTypeId = GlobalId,
-                    SigFOLength = Fixed.Length,
-                    SigFVLength = Fixed.Length,
-                    HasVO = Vararg.HasValue,
-                    HasVV = Vararg.HasValue,
+                    SigFLength = ElementInfo.Length,
+                    HasV = Vararg.HasValue,
                 };
             }
             throw new NotImplementedException();
@@ -82,14 +82,18 @@ namespace FastLua.VM
             var a = new StackSignature()
             {
                 GlobalId = Interlocked.Increment(ref _nextGlobalId),
-                Fixed = Enumerable.Repeat(VMSpecializationType.Polymorphic, count).ToImmutableArray(),
+                ElementInfo = Enumerable.Range(0, count)
+                    .Select(i => (VMSpecializationType.Polymorphic, i)).ToImmutableArray(),
+                SlotInfo = Enumerable.Range(0, count)
+                    .Select(i => (i, i)).ToImmutableArray(),
                 Vararg = VMSpecializationType.Polymorphic,
                 IsUnspecialized = true,
             };
             var b = new StackSignature()
             {
                 GlobalId = Interlocked.Increment(ref _nextGlobalId),
-                Fixed = Enumerable.Repeat(VMSpecializationType.Polymorphic, count).ToImmutableArray(),
+                ElementInfo = a.ElementInfo,
+                SlotInfo = a.SlotInfo,
                 Vararg = null,
                 IsUnspecialized = true,
                 _vararg = a,

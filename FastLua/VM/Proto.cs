@@ -15,11 +15,10 @@ namespace FastLua.VM
 
         public SignatureDesc ParameterSig;
 
-        public int NumStackSize;
-        public int ObjStackSize;
+        public int StackSize;
 
         public int UpvalRegionOffset; //obj only
-        public int LocalRegionOffsetO, LocalRegionOffsetV;
-        public int SigRegionOffsetO, SigRegionOffsetV;
+        public int LocalRegionOffset;
+        public int SigRegionOffset;
     }
 }

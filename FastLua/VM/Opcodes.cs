@@ -45,6 +45,8 @@ namespace FastLua.VM
 
         K,
 
+        K_D,
+
         //Upvals.
 
         UGET,

@@ -18,32 +18,27 @@ namespace FastLua.VM
 
         public SignatureDesc SigDesc;
 
-        public int SigNumberOffset; //Start of sig block.
-        public int SigObjectOffset;
-        public int SigVOLength; //Length of vararg part.
-        public int SigVVLength;
+        public int SigOffset; //Start of sig block.
+        public int SigVLength; //Length of vararg part.
 
-        public int SigTotalOLength => SigDesc.SigFOLength + SigVOLength;
-        public int SigTotalVLength => SigDesc.SigFVLength + SigVVLength;
+        public int SigTotalLength => SigDesc.SigFLength + SigVLength;
 
         public void ClearSigBlock()
         {
-            SigVOLength = SigVVLength = 0;
+            SigVLength = 0;
             SigDesc = SignatureDesc.Null;
         }
 
-        public void SetSigBlock(ref SignatureDesc desc, int o, int v)
+        public void SetSigBlock(ref SignatureDesc desc, int pos)
         {
-            SigObjectOffset = o;
-            SigNumberOffset = v;
-            SigVOLength = 0;
-            SigVVLength = 0;
+            SigOffset = pos;
+            SigVLength = 0;
             SigDesc = desc;
         }
 
         //Adjust sig block. This operation handles sig block generated inside the same function
         //so it should never fail (or it's a program error), and we don't really need to check.
-        public void ResizeSigBlockLeft(ref SignatureDesc desc, int o, int v)
+        public void ResizeSigBlockLeft(ref SignatureDesc desc, int pos)
         {
             //0 is the Null signature, which is different from Empty. Null can only be created
             //from ClearSigBlock (when starting a new function or using CALLC instruction).
@@ -51,18 +46,15 @@ namespace FastLua.VM
             {
                 //New sig block at given place.
                 //Note that the (o,v) is the last item (inclusive) in the block.
-                SigObjectOffset = o - desc.SigFOLength;
-                SigNumberOffset = v - desc.SigFVLength;
+                SigOffset = pos - desc.SigFLength;
                 SigDesc = desc;
             }
             else
             {
-                Debug.Assert(desc.SigFVLength >= SigDesc.SigFVLength);
-                Debug.Assert(desc.SigFOLength >= SigDesc.SigFOLength);
+                Debug.Assert(desc.SigFLength >= SigDesc.SigFLength);
 
                 //Extend to left.
-                SigNumberOffset -= desc.SigFVLength - SigDesc.SigFVLength;
-                SigObjectOffset -= desc.SigFOLength - SigDesc.SigFOLength;
+                SigOffset -= desc.SigFLength - SigDesc.SigFLength;
                 SigDesc = desc;
             }
             //Don't clear vv and vo length.
@@ -94,21 +86,15 @@ namespace FastLua.VM
                 SigDesc.SigType.AdjustStackToUnspecialized();
             }
 
-            var diffO = desc.SigFOLength - SigDesc.SigFOLength;
-            var diffV = desc.SigFVLength - SigDesc.SigFVLength;
+            var diff = desc.SigFLength - SigDesc.SigFLength;
 
             //Fill nils if necessary.
-            if (diffO > 0)
+            if (diff > 0)
             {
-                stack.ObjectFrame.Slice(SigObjectOffset + SigTotalOLength, diffO).Clear();
-            }
-            if (diffV > 0)
-            {
-                stack.NumberFrame.Slice(SigNumberOffset + SigTotalVLength, diffV).Fill(TypedValue.Nil.Number);
+                stack.ValueFrame.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
             }
             SigDesc = desc;
-            SigVOLength -= diffO; //Update variant part length for WriteVararg to work properly.
-            SigVVLength -= diffV;
+            SigVLength -= diff; //Update variant part length for WriteVararg to work properly.
             WriteVararg(ref stack, varargStorage, out varargCount);
             return true;
         }
@@ -120,47 +106,24 @@ namespace FastLua.VM
                 count = 0;
                 return;
             }
-            var vo = SigDesc.HasVO;
-            var vv = SigDesc.HasVV;
+            Debug.Assert(SigDesc.HasV);
             int start;
-            if (vv && vo)
-            {
-                //Unspecialized vararg.
-                Debug.Assert(SigNumberOffset == SigObjectOffset);
-                Debug.Assert(SigDesc.SigFVLength == SigDesc.SigFOLength);
-                Debug.Assert(SigVOLength == SigVVLength);
-                start = SigNumberOffset + SigDesc.SigFVLength;
-                count = SigVVLength;
-            }
-            else if (vo)
-            {
-                start = SigObjectOffset + SigDesc.SigFOLength;
-                count = SigVOLength;
-            }
-            else
-            {
-                Debug.Assert(vv);
-                start = SigNumberOffset + SigDesc.SigFVLength;
-                count = SigVVLength;
-            }
+            start = SigOffset + SigDesc.SigFLength;
+            count = SigVLength;
             for (int i = 0; i < count; ++i)
             {
-                storage.Add(new TypedValue
-                {
-                    Number = stack.NumberFrame[start + i],
-                    Object = stack.ObjectFrame[start + i],
-                });
+                storage.Add(stack.ValueFrame[start + i]);
             }
         }
 
+        //TODO this should be simplified: we no longer need type parameter
         public void AppendVarargSig(VMSpecializationType type, int count)
         {
             //There can only be one vararg block.
-            Debug.Assert(SigVOLength == 0 && SigVVLength == 0);
+            Debug.Assert(SigVLength == 0);
             SigDesc = SigDesc.WithVararg(type);
             var (v, o) = type.GetStorageType();
-            if (v) SigVVLength = count;
-            if (o) SigVOLength = count;
+            if (v || o) SigVLength = count;
         }
     }
 }
