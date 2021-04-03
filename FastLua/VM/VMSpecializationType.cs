@@ -31,12 +31,13 @@ namespace FastLua.VM
         MultiTyped = 0x100, //flag
         ValueOnly = 0x110,
         RefOnly = 0x120,
-        Polymorphic = 0x140,
+        Polymorphic = 0x130,
 
         //Masks to check storage usage.
 
         StorageValue = 0x10,
         StorageRef = 0x20,
+        StorageBoth = 0x30,
         StorageBits = 0xF0,
     }
 

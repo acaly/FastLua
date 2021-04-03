@@ -16,7 +16,7 @@ namespace FastLua.SyntaxTree
         Int32,
         Double,
         String,
-        CLRFunction,
+        //CLRFunction,
         CLRDelegate,
         Table,
         Thread,

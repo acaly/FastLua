@@ -61,6 +61,10 @@ namespace FastLua.Parser
                 {
                     GlobalId = FunctionDefinitionSyntaxNode.CreateGlobalId(),
                     HasVararg = true, //Main function should be compiled as vararg.
+                    VarargType = new SpecializationType
+                    {
+                        LuaType = SpecializationLuaType.Unspecified,
+                    },
                     ParentExternalFunction = null,
                     ReturnNumber = FunctionReturnNumber.MultiRet,
                 };
@@ -79,6 +83,10 @@ namespace FastLua.Parser
                 {
                     GlobalId = FunctionDefinitionSyntaxNode.CreateGlobalId(),
                     HasVararg = hasVararg,
+                    VarargType = !hasVararg ? default : new SpecializationType
+                    {
+                        LuaType = SpecializationLuaType.Unspecified,
+                    },
                     ParentExternalFunction = new ExternalFunctionReferenceSyntaxNode()
                     {
                         GlobalFunctionId = parent.Node.GlobalId,

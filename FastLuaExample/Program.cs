@@ -5,6 +5,7 @@ using FastLua.Parser;
 using FastLua.SyntaxTree;
 using FastLua.VM;
 using System;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -88,11 +89,8 @@ end
             var (sig2, _) = StackSignature.CreateUnspecialized(2);
             var proto2 = new Proto
             {
-                ChildFunctions = Array.Empty<Proto>(),
-                ConstantsU = new TypedValue[]
-                {
-                    TypedValue.MakeDouble(1),
-                },
+                ChildFunctions = ImmutableArray<Proto>.Empty,
+                Constants = ImmutableArray.Create(TypedValue.MakeDouble(1)),
                 SigDesc = new SignatureDesc[]
                 {
                     sig1.GetDesc(),
@@ -106,7 +104,7 @@ end
                 {
                     (uint)(Opcodes.K_D) << 24 | 0 << 16 | 0 << 8 | 0, //local[0] = constant[0]
                     (uint)(Opcodes.RETN) << 24 | 0 << 16 | 0 << 8, //return sig:0 (0)
-                },
+                }.ToImmutableArray(),
             };
             var closure2 = new LClosure
             {
@@ -115,13 +113,13 @@ end
             };
             var proto1 = new Proto
             {
-                ChildFunctions = Array.Empty<Proto>(),
-                ConstantsU = new TypedValue[]
+                ChildFunctions = ImmutableArray<Proto>.Empty,
+                Constants = new TypedValue[]
                 {
                     TypedValue.MakeDouble(1),
                     TypedValue.MakeDouble(2),
                     TypedValue.MakeLClosure(closure2),
-                },
+                }.ToImmutableArray(),
                 SigDesc = new SignatureDesc[]
                 {
                     sig2.GetDesc(),
@@ -140,7 +138,7 @@ end
                     (uint)(Opcodes.K_D) << 24 | 0 << 16 | 1 << 8, //local[0] = constant[1]
                     (uint)(Opcodes.ADD_D) << 24 | 0 << 16 | 0 << 8 | 1, //add local[0] = local[0] + local[1]
                     (uint)(Opcodes.RETN) << 24 | 2 << 16 | 0 << 8, //ret sig: 2(sig1) (0)
-                },
+                }.ToImmutableArray(),
             };
             var closure1 = new LClosure
             {

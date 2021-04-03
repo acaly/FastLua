@@ -31,6 +31,7 @@ namespace FastLua.SyntaxTree
         public List<LocalVariableDefinitionSyntaxNode> Parameters { get; } = new();
 
         public bool HasVararg { get; set; }
+        public SpecializationType VarargType { get; set; }
         public FunctionReturnNumber ReturnNumber { get; set; }
 
         internal override void Serialize(BinaryWriter bw)
@@ -43,6 +44,7 @@ namespace FastLua.SyntaxTree
             SerializeL(bw, ImportedUpValueLists);
             SerializeL(bw, Parameters);
             SerializeV(bw, HasVararg);
+            SerializeV(bw, VarargType);
             SerializeV(bw, ReturnNumber);
         }
 
@@ -55,6 +57,7 @@ namespace FastLua.SyntaxTree
             DeserializeL(br, ImportedUpValueLists);
             DeserializeL(br, Parameters);
             HasVararg = DeserializeV<bool>(br);
+            VarargType = DeserializeV<SpecializationType>(br);
             ReturnNumber = DeserializeV<FunctionReturnNumber>(br);
         }
 

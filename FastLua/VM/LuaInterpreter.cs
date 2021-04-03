@@ -263,7 +263,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = stack.MetaData.Func.ConstantsU[b];
+                    stack.ValueFrame[a] = stack.MetaData.Func.Constants[b];
                     lastWriteO = lastWriteV = a;
                     break;
                 }
@@ -271,7 +271,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a].Number = stack.MetaData.Func.ConstantsU[b].Number;
+                    stack.ValueFrame[a].Number = stack.MetaData.Func.Constants[b].Number;
                     lastWriteO = lastWriteV = a;
                     break;
                 }
