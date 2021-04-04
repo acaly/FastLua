@@ -18,7 +18,6 @@ namespace FastLua.SyntaxTree
 
     public enum ExpressionReceiverMultiRetState
     {
-        Single,
         Fixed,
         Variable,
     }

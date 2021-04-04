@@ -480,6 +480,7 @@ namespace FastLua.Parser
                     Declaration = new(decl),
                 };
                 _declaredLocals.Add(name.ToString(), new(def));
+                _block.LocalVariables.Add(new(def));
                 return def;
             }
 
@@ -538,9 +539,9 @@ namespace FastLua.Parser
                 return block;
             }
 
-            public IfSyntaxNode AddIfStatement()
+            public IfStatementSyntaxNode AddIfStatement()
             {
-                var ret = new IfSyntaxNode();
+                var ret = new IfStatementSyntaxNode();
                 Add(ret);
                 return ret;
             }

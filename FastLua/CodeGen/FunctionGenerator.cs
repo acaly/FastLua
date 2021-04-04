@@ -23,7 +23,6 @@ namespace FastLua.CodeGen
         public readonly FunctionLocalDictionary Locals = new();
         public readonly List<Proto> ChildFunctions = new();
         public readonly List<TypedValue> Constants = new();
-        public readonly List<StackSignature> Signatures = new();
 
         public FunctionGenerator(SignatureManager signatureManager)
         {
@@ -77,13 +76,30 @@ namespace FastLua.CodeGen
             //Generate code.
             var instructions = new InstructionWriter();
             block.Emit(instructions);
+
+            //Ensure there is a ret as the last instruction.
+            bool hasRet = false;
+            if (instructions.Count > 0)
+            {
+                var (opcode, _, _, _) = instructions.ReadUUU(instructions.Count - 1);
+                if (opcode == Opcodes.RET0 || opcode == Opcodes.RETN)
+                {
+                    hasRet = true;
+                }
+            }
+            if (!hasRet)
+            {
+                instructions.WriteUUU(Opcodes.RET0, 0, 0, 0);
+            }
+
+            //Fix jumps.
             instructions.RunFix();
 
             return new Proto
             {
                 ChildFunctions = ChildFunctions.ToImmutableArray(),
-                ParameterSig = paramTypeList.GetSignature(SignatureManager).GetDesc(),
-                SigDesc = Signatures.Select(s => s.GetDesc()).ToArray(),
+                ParameterSig = paramTypeList.GetSignature(SignatureManager).s.GetDesc(),
+                SigDesc = SignatureManager.ToArray(),
                 Constants = Constants.ToImmutableArray(),
                 Instructions = instructions.ToImmutableArray(),
                 StackSize = stackLength,

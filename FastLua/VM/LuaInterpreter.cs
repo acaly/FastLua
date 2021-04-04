@@ -415,6 +415,7 @@ namespace FastLua.VM
                 case Opcodes.RET0:
                 {
                     //No need to pass anything to caller.
+                    thread.ClearSigBlock();
                     goto loopEnd;
                 }
                 case Opcodes.RETN:

@@ -11,6 +11,19 @@ namespace FastLua.SyntaxTree
     {
         public List<ExpressionSyntaxNode> Expressions { get; } = new();
 
+        public bool HasVararg
+        {
+            get
+            {
+                if (Expressions.Count == 0) return false;
+                var lastState = Expressions[^1].MultiRetState;
+                return lastState == ExpressionMultiRetState.MayBe ||
+                    lastState == ExpressionMultiRetState.MustBe;
+            }
+        }
+
+        public int FixedCount => HasVararg ? Expressions.Count - 1 : Expressions.Count;
+
         internal override void Serialize(BinaryWriter bw)
         {
             SerializeHeader<ExpressionListSyntaxNode>(bw);

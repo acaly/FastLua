@@ -10,78 +10,52 @@ namespace FastLua.CodeGen
 {
     internal abstract class ExpressionGenerator
     {
-        public abstract void WritSig(SignatureWriter writer);
-        public abstract bool TryGetFromStack(out int stackOffset);
-        public abstract void Emit(InstructionWriter writer, AllocatedLocal dest);
-    }
+        public abstract bool TryGetSingleType(out VMSpecializationType type);
 
-    internal class LocalVariableExpressionGenerator : ExpressionGenerator
-    {
-        private readonly VMSpecializationType _type;
-        private readonly AllocatedLocal _localInfo;
-
-        public LocalVariableExpressionGenerator(BlockStackFragment stack, LocalVariableDefinitionSyntaxNode definition)
+        //For all expressions: write its type to writer. Vararg expr should write vararg.
+        //This is called before the emit stage.
+        public virtual void WritSig(SignatureWriter writer)
         {
-            _type = definition.Specialization.GetVMSpecializationType();
-            _localInfo = stack.AddSpecializedType(_type);
-        }
-
-        public override void WritSig(SignatureWriter writer)
-        {
-            writer.AppendFixed(_type);
-        }
-
-        public override bool TryGetFromStack(out int stackOffset)
-        {
-            stackOffset = _localInfo.Offset;
-            return true;
-        }
-
-        public override void Emit(InstructionWriter writer, AllocatedLocal dest)
-        {
-            var destIndex = dest.Offset;
-            var offset = _localInfo.Offset;
-            if (offset > 255 || destIndex > 255)
+            if (!TryGetSingleType(out var t))
             {
-                throw new NotImplementedException();
+                throw new NotSupportedException();
             }
-            writer.WriteUUU(Opcodes.MOV, destIndex, offset, 0);
-        }
-    }
-
-    internal class UpvalueExpressionGenerator : ExpressionGenerator
-    {
-        private readonly AllocatedLocal _upvalList;
-        private readonly int _index;
-        private readonly VMSpecializationType _type;
-
-        public UpvalueExpressionGenerator(AllocatedLocal upvalList, int index, LocalVariableDefinitionSyntaxNode definition)
-        {
-            _upvalList = upvalList;
-            _index = index;
-            _type = definition.Specialization.GetVMSpecializationType();
+            writer.AppendFixed(t);
         }
 
-        public override void WritSig(SignatureWriter writer)
+        //For locals & arguments: provide the slot it occupies on stack.
+        //This might be called before and during the emit stage.
+        //EmitPrep will NOT be called before this.
+        public abstract bool TryGetFromStack(out AllocatedLocal stackOffset);
+
+        //For index variable: calculate table and key and write to stack.
+        public virtual void EmitPrep(InstructionWriter writer)
         {
-            writer.AppendFixed(_type);
         }
 
-        public override bool TryGetFromStack(out int stackOffset)
+        //For all expressions: get the single value and write to dest.
+        //EmitPrep will be called before this.
+        public abstract void EmitGet(InstructionWriter writer, AllocatedLocal dest);
+
+        //For vararg expr: calculate the value and write to stack at sigblock's location, with the given sig index.
+        //The sigIndex is the index into proto's signature list. This should be the out signature of function calls.
+        //EmitPrep will be called before this.
+        public virtual void EmitGet(InstructionWriter writer, BlockStackFragment sigBlock, int sigIndex)
         {
-            stackOffset = default;
-            return false;
+            throw new NotSupportedException();
         }
 
-        public override void Emit(InstructionWriter writer, AllocatedLocal dest)
+        //For variables: set the value of the variable to the value at src.
+        //EmitPrep will be called before this.
+        public virtual void EmitSet(InstructionWriter writer, AllocatedLocal src, VMSpecializationType type)
         {
-            var destIndex = dest.Offset;
-            var listOffset = _upvalList.Offset;
-            if (destIndex > 255 | listOffset > 255 | _index > 255)
-            {
-                throw new NotImplementedException();
-            }
-            writer.WriteUUU(Opcodes.UGET, destIndex, listOffset, _index);
+            throw new NotSupportedException();
+        }
+
+        //For expressions with side effects: perform the expression's side effect without saving the value.
+        //EmitPrep will NOT be called before this.
+        public virtual void EmitDiscard(InstructionWriter writer)
+        {
         }
     }
 }

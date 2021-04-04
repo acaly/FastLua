@@ -18,7 +18,7 @@ namespace FastLua.CodeGen
             _vararg = null;
         }
 
-        public StackSignature GetSignature(SignatureManager manager)
+        public (StackSignature s, int i) GetSignature(SignatureManager manager)
         {
             return manager.Get(_fixed, _vararg);
         }

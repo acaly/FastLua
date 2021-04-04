@@ -20,6 +20,8 @@ namespace FastLua.CodeGen
         private int LastLocation => _instructions.Count - 1;
         private int NextLocation => _instructions.Count;
 
+        public int Count => _instructions.Count;
+
         public void RunFix()
         {
             for (int i = 0; i <  _fixes.Count; ++i)

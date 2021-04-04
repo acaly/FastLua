@@ -508,6 +508,14 @@ namespace FastLua.Parser
             {
                 ret.Expressions.Add(Expr(ref t));
             } while (TestAndNext(ref t, (LuaTokenType)','));
+            if (ret.Expressions.Count > 0)
+            {
+                var lastExpr = ret.Expressions[^1];
+                if (lastExpr is InvocationExpressionSyntaxNode || lastExpr is VarargExpressionSyntaxNode)
+                {
+                    lastExpr.ReceiverMultiRetState = ExpressionReceiverMultiRetState.Variable;
+                }
+            }
             return ret;
         }
 
@@ -696,6 +704,7 @@ namespace FastLua.Parser
             {
                 Function = func,
                 HasSelf = hasSelf,
+                MultiRetState = ExpressionMultiRetState.MayBe,
             };
             switch (t.Type)
             {

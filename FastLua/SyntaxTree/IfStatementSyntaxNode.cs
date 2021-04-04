@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace FastLua.SyntaxTree
 {
-    public sealed class IfSyntaxNode : StatementSyntaxNode
+    public sealed class IfStatementSyntaxNode : StatementSyntaxNode
     {
         public List<ThenElseBlockSyntaxNode> Clauses { get; } = new();
 
         internal override void Serialize(BinaryWriter bw)
         {
-            SerializeHeader<IfSyntaxNode>(bw);
+            SerializeHeader<IfStatementSyntaxNode>(bw);
             base.Serialize(bw);
             SerializeL(bw, Clauses);
         }

@@ -9,9 +9,10 @@ namespace FastLua.CodeGen
 {
     internal class SignatureManager
     {
-        private readonly Dictionary<int, List<StackSignature>> _knownSignatures = new();
+        private int _nextIndex = 0;
+        private readonly Dictionary<int, List<(StackSignature s, int i)>> _knownSignatures = new();
 
-        public StackSignature Get(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
+        public (StackSignature, int) Get(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
         {
             if (!TryFind(fixedList, vararg, out var ret))
             {
@@ -22,7 +23,7 @@ namespace FastLua.CodeGen
         }
 
         private bool TryFind(List<VMSpecializationType> fixedList, VMSpecializationType? vararg,
-            out StackSignature result)
+            out (StackSignature, int) result)
         {
             if (!_knownSignatures.TryGetValue(fixedList.Count, out var list))
             {
@@ -31,13 +32,13 @@ namespace FastLua.CodeGen
             }
             foreach (var s in list)
             {
-                if (!(vararg == s.Vararg)) //Comparing nullable.
+                if (!(vararg == s.s.Vararg)) //Comparing nullable.
                 {
                     continue;
                 }
                 for (int i = 0; i < fixedList.Count; ++i)
                 {
-                    if (fixedList[i] != s.ElementInfo[i].type)
+                    if (fixedList[i] != s.s.ElementInfo[i].type)
                     {
                         continue;
                     }
@@ -45,11 +46,11 @@ namespace FastLua.CodeGen
                 result = s;
                 return true;
             }
-            result = null;
+            result = default;
             return false;
         }
 
-        private StackSignature Create(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
+        private (StackSignature, int) Create(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
         {
             if (fixedList.Any(t => t != VMSpecializationType.Unknown && t != VMSpecializationType.Polymorphic))
             {
@@ -62,9 +63,16 @@ namespace FastLua.CodeGen
             }
             var (nv, v) = StackSignature.CreateUnspecialized(fixedList.Count);
             var list = _knownSignatures[fixedList.Count];
-            list.Add(nv);
-            list.Add(v);
-            return vararg.HasValue ? v : nv;
+            var nvr = (nv, _nextIndex++); //We are adding both into the list, but actually only one is requested.
+            var vr = (v, _nextIndex++);
+            list.Add(nvr);
+            list.Add(vr);
+            return vararg.HasValue ? vr : nvr;
+        }
+
+        public SignatureDesc[] ToArray()
+        {
+            return _knownSignatures.SelectMany(l => l.Value).Select(s => s.s.GetDesc()).ToArray();
         }
     }
 }

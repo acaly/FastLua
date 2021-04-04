@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
+using FastLua.CodeGen;
 using FastLua.Diagnostics;
 using FastLua.Parser;
 using FastLua.SyntaxTree;
@@ -28,7 +29,7 @@ namespace FastLuaExample
 end
 ", 1));
 
-        private static readonly string _code2 = @"local count = 0 local function onclick() count = count + 1 end";
+        private static readonly string _code2 = @"local count = 0";
 
         private static readonly string _code3 = @"
 return function()
@@ -84,6 +85,27 @@ end
 ";
 
         public static void Main()
+        {
+            var codeReader = new StringReader(_code2);
+            var rawTokens = new LuaRawTokenizer();
+            var luaTokens = new LuaTokenizer();
+            rawTokens.Reset(codeReader);
+            luaTokens.Reset(rawTokens);
+
+            var parser = new LuaParser();
+            var builder = new SyntaxTreeBuilder();
+            builder.Start();
+            luaTokens.EnsureMoveNext();
+            parser.Reset(luaTokens, builder);
+            parser.Parse();
+
+            var ast = builder.Finish();
+            var sigManager = new SignatureManager();
+            var funcGen = new FunctionGenerator(sigManager);
+            var proto = funcGen.Generate(ast.RootFunction);
+        }
+
+        public static void Interpreter()
         {
             var (sig1, _) = StackSignature.CreateUnspecialized(1);
             var (sig2, _) = StackSignature.CreateUnspecialized(2);

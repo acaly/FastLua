@@ -72,6 +72,9 @@ namespace FastLua.VM
         SIG,
 
         //Return.
+        //Note: there must be a ret as the last instruction. This
+        //is checked by FunctionGenerator. Update the code there if
+        //new return opcodes are added.
 
         RET0,
         RETN,

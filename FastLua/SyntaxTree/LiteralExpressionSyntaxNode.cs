@@ -68,7 +68,7 @@ namespace FastLua.SyntaxTree
             SpecializationType = new() { LuaType = SpecializationLuaType.String };
         }
 
-        public bool CanBeInt64 =>
+        public bool CanBeInt32 =>
             SpecializationType.LuaType == SpecializationLuaType.Int32 ||
             _sIntValue.HasValue;
 
