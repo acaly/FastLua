@@ -71,7 +71,7 @@ namespace FastLua.VM
                 WriteVararg(ref stack, varargStorage, out varargCount);
                 return true;
             }
-            if (!SigDesc.SigType.IsCompatibleWith(desc.SigTypeId))
+            if (!SigDesc.SigType.IsCompatibleWith(desc.SigType))
             {
                 //Not compatible.
                 if (!desc.SigType.IsUnspecialized)
@@ -89,12 +89,13 @@ namespace FastLua.VM
             var diff = desc.SigFLength - SigDesc.SigFLength;
 
             //Fill nils if necessary.
-            if (diff > 0)
+            if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
             {
                 stack.ValueFrame.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
             }
             SigDesc = desc;
-            SigVLength -= diff; //Update variant part length for WriteVararg to work properly.
+            //Update variant part length for WriteVararg to work properly.
+            SigVLength -= desc.SigFLength - SigDesc.SigFLength;
             WriteVararg(ref stack, varargStorage, out varargCount);
             return true;
         }

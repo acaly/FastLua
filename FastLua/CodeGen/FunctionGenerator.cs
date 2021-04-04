@@ -20,7 +20,7 @@ namespace FastLua.CodeGen
         public readonly OverlappedStackFragment SigBlockFragment;
 
         public readonly SignatureManager SignatureManager;
-        public readonly FunctionLocalDictionary FunctionLevelLocals = new();
+        public readonly FunctionLocalDictionary Locals = new();
         public readonly List<Proto> ChildFunctions = new();
         public readonly List<TypedValue> Constants = new();
         public readonly List<StackSignature> Signatures = new();
@@ -43,12 +43,16 @@ namespace FastLua.CodeGen
         public Proto Generate(FunctionDefinitionSyntaxNode funcNode)
         {
             //Add parameters.
-            List<VMSpecializationType> argTypeList = new();
+            SignatureWriter paramTypeList = new();
             foreach (var p in funcNode.Parameters)
             {
-                var vmType = p.Specialization.GetVMSpecializationType();
-                FunctionLevelLocals.Add(p, new LocalVariableExpressionGenerator(ArgumentFragment.AddSpecializedType(vmType)));
-                argTypeList.Add(vmType);
+                var paramGenerator = new LocalVariableExpressionGenerator(ArgumentFragment, p);
+                Locals.Add(p, paramGenerator);
+                paramGenerator.WritSig(paramTypeList);
+            }
+            if (funcNode.HasVararg)
+            {
+                paramTypeList.AppendVararg(funcNode.VarargType.GetVMSpecializationType());
             }
 
             //Add upvalues
@@ -57,28 +61,28 @@ namespace FastLua.CodeGen
                 var listLocal = UpvalFragment.AddObj(1);
                 for (int i = 0; i < upList.Variables.Count; ++i)
                 {
-                    FunctionLevelLocals.Add(upList.Variables[i],
-                        new UpvalueExpressionGenerator(listLocal, i));
+                    var upvalGenerator = new UpvalueExpressionGenerator(listLocal, i, upList.Variables[i]);
+                    Locals.Add(upList.Variables[i], upvalGenerator);
                 }
             }
 
-            //Create main block
-            var block = new BlockGenerator(funcNode);
+            //Create main block (this will recursively create all blocks and thus all locals).
+            var factory = new GeneratorFactory(this);
+            var block = factory.CreateStatement(null, funcNode);
 
             //Build locals.
             int stackLength = 0;
             Stack.Build(ref stackLength);
 
             //Generate code.
-            var instructions = new List<uint>();
-            block.Generate(instructions);
+            var instructions = new InstructionWriter();
+            block.Emit(instructions);
+            instructions.RunFix();
 
-            VMSpecializationType? varargType = funcNode.HasVararg ? funcNode.VarargType.GetVMSpecializationType() : null;
-            var paramSig = SignatureManager.Get(argTypeList, varargType);
             return new Proto
             {
                 ChildFunctions = ChildFunctions.ToImmutableArray(),
-                ParameterSig = paramSig.GetDesc(),
+                ParameterSig = paramTypeList.GetSignature(SignatureManager).GetDesc(),
                 SigDesc = Signatures.Select(s => s.GetDesc()).ToArray(),
                 Constants = Constants.ToImmutableArray(),
                 Instructions = instructions.ToImmutableArray(),

@@ -63,9 +63,14 @@ namespace FastLua.VM
         //Compatible means all slots of the smaller one fix into the bigger
         //one without needing any conversion, so that directly adjusting
         //length is enough.
-        public bool IsCompatibleWith(ulong id)
+        public bool IsCompatibleWith(StackSignature sig)
         {
-            return id == 0 || _compatibleSignatures.Contains(id);
+            if (IsUnspecialized && sig.IsUnspecialized)
+            {
+                //Unspecialized sig are always compatible (with or without vararg).
+                return true;
+            }
+            return sig.GlobalId == 0 || _compatibleSignatures.Contains(sig.GlobalId);
         }
 
         public void AdjustStackToUnspecialized()
