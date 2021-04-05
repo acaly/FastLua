@@ -41,6 +41,11 @@ namespace FastLua.CodeGen
             return (uint)opcode << 24 | (uint)a << 16 | (uint)b << 8 | (byte)(sbyte)c;
         }
 
+        private static uint MakeUSx(Opcodes opcode, int a, int b)
+        {
+            return (uint)opcode << 24 | (uint)a << 16 | (ushort)(short)b;
+        }
+
         private static (Opcodes, int, int, int) DeconstructUUU(uint inst)
         {
             var o = (Opcodes)(inst >> 24);
@@ -59,6 +64,14 @@ namespace FastLua.CodeGen
             return (o, a, b, c);
         }
 
+        private static (Opcodes, int, int) DeconstructUSx(uint inst)
+        {
+            var o = (Opcodes)(inst >> 24);
+            var a = (int)((inst >> 16) & 0xFF);
+            var b = (short)(ushort)(inst & 0xFFFF);
+            return (o, a, b);
+        }
+
         public void WriteUUU(Opcodes opcode, int a, int b, int c)
         {
             _instructions.Add(MakeUUU(opcode, a, b, c));
@@ -67,6 +80,11 @@ namespace FastLua.CodeGen
         public void WriteUUS(Opcodes opcode, int a, int b, int c)
         {
             _instructions.Add(MakeUUS(opcode, a, b, c));
+        }
+
+        public void WriteUSx(Opcodes opcode, int a, int b)
+        {
+            _instructions.Add(MakeUSx(opcode, a, b));
         }
 
         public (Opcodes, int, int, int) ReadUUU(int index)
@@ -79,6 +97,11 @@ namespace FastLua.CodeGen
             return DeconstructUUS(_instructions[index]);
         }
 
+        public (Opcodes, int, int) ReadUSx(int index)
+        {
+            return DeconstructUSx(_instructions[index]);
+        }
+
         public void ReplaceUUU(int index, Opcodes opcode, int a, int b, int c)
         {
             _instructions[index] = MakeUUU(opcode, a, b, c);
@@ -87,6 +110,11 @@ namespace FastLua.CodeGen
         public void ReplaceUUS(int index, Opcodes opcode, int a, int b, int c)
         {
             _instructions[index] = MakeUUS(opcode, a, b, c);
+        }
+
+        public void ReplaceUSx(int index, Opcodes opcode, int a, int b)
+        {
+            _instructions[index] = MakeUSx(opcode, a, b);
         }
 
         //TODO may need to support insert
@@ -108,6 +136,30 @@ namespace FastLua.CodeGen
         public ImmutableArray<uint> ToImmutableArray()
         {
             return _instructions.ToImmutableArray();
+        }
+
+        //The default InstructionFixDelegate that fixes the jump offset at the low 8-bit as signed int.
+        public static void FixUUSJump(InstructionWriter writer, int instLocation, int labelLocation)
+        {
+            var (op, a, b, _) = writer.ReadUUS(instLocation);
+            var offset = labelLocation - instLocation;
+            if (offset > 255 || offset < -256)
+            {
+                throw new NotImplementedException();
+            }
+            writer.ReplaceUUS(instLocation, op, a, b, offset);
+        }
+
+        public static void FixUSxJump(InstructionWriter writer, int instLocation, int labelLocation)
+        {
+            var (op, a, _) = writer.ReadUSx(instLocation);
+            var offset = labelLocation - instLocation;
+            if (offset < short.MinValue || offset > short.MaxValue)
+            {
+                //Maybe this should be a different exception.
+                throw new NotImplementedException();
+            }
+            writer.ReplaceUSx(instLocation, op, a, offset);
         }
     }
 }

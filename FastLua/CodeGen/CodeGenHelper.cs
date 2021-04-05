@@ -42,5 +42,12 @@ namespace FastLua.CodeGen
                 return frag.AddUnspecialized(1);
             }
         }
+
+        //Currently used to mark the places where Polymorphic is returned simply because type conversion
+        //instructions are not supported yet.
+        public static VMSpecializationType Deoptimize(this VMSpecializationType type)
+        {
+            return VMSpecializationType.Polymorphic;
+        }
     }
 }

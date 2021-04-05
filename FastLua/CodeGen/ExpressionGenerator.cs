@@ -2,6 +2,7 @@
 using FastLua.VM;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,15 +13,18 @@ namespace FastLua.CodeGen
     {
         public abstract bool TryGetSingleType(out VMSpecializationType type);
 
+        public VMSpecializationType GetSingleType()
+        {
+            var hasSingleType = TryGetSingleType(out var ret);
+            Debug.Assert(hasSingleType);
+            return ret;
+        }
+
         //For all expressions: write its type to writer. Vararg expr should write vararg.
         //This is called before the emit stage.
         public virtual void WritSig(SignatureWriter writer)
         {
-            if (!TryGetSingleType(out var t))
-            {
-                throw new NotSupportedException();
-            }
-            writer.AppendFixed(t);
+            writer.AppendFixed(GetSingleType());
         }
 
         //For locals & arguments: provide the slot it occupies on stack.

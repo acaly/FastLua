@@ -62,8 +62,7 @@ namespace FastLua.CodeGen
                 var src = exprList.Expressions[i];
                 var dest = variables[i];
                 var srcGen = factory.CreateExpression(parent, src);
-                var srcHasType = srcGen.TryGetSingleType(out var srcType);
-                Debug.Assert(srcHasType);
+                var srcType = srcGen.GetSingleType();
                 AllocatedLocal tmpSlot = default;
                 if (!srcGen.TryGetFromStack(out _) && !dest.TryGetFromStack(out _))
                 {
@@ -87,8 +86,7 @@ namespace FastLua.CodeGen
                 for (int i = oneToOneCount; i < variables.Count; ++i)
                 {
                     var v = variables[i];
-                    var hasType = v.TryGetSingleType(out var type);
-                    Debug.Assert(hasType);
+                    var type = v.GetSingleType();
                     sigWriter.AppendFixed(type);
                     var slot = _variableFragment.AddSpecializedType(type);
                     _variableAssignment.Add(new AssignmentInfo

@@ -22,7 +22,7 @@ namespace FastLua.CodeGen
         public readonly SignatureManager SignatureManager;
         public readonly FunctionLocalDictionary Locals = new();
         public readonly List<Proto> ChildFunctions = new();
-        public readonly List<TypedValue> Constants = new();
+        public readonly ConstantWriter Constants = new();
 
         public FunctionGenerator(SignatureManager signatureManager)
         {

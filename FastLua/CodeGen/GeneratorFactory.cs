@@ -1,6 +1,7 @@
 ﻿using FastLua.SyntaxTree;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,6 +22,32 @@ namespace FastLua.CodeGen
             switch (expr)
             {
             case BinaryExpressionSyntaxNode binary:
+            {
+                switch (binary.Operator.V)
+                {
+                case BinaryOperator.Raw.Add:
+                case BinaryOperator.Raw.Sub:
+                case BinaryOperator.Raw.Mul:
+                case BinaryOperator.Raw.Div:
+                case BinaryOperator.Raw.Pow:
+                case BinaryOperator.Raw.Mod:
+                    return new BinaryExpressionGenerator(this, parentBlock, binary);
+                case BinaryOperator.Raw.Conc:
+                    return new ConcatBinaryExpressionGenerator(this, parentBlock, binary);
+                case BinaryOperator.Raw.L:
+                case BinaryOperator.Raw.LE:
+                case BinaryOperator.Raw.G:
+                case BinaryOperator.Raw.GE:
+                case BinaryOperator.Raw.E:
+                case BinaryOperator.Raw.NE:
+                    return new ComparisonBinaryExpressionGenerator(this, parentBlock, binary);
+                case BinaryOperator.Raw.And:
+                case BinaryOperator.Raw.Or:
+                    return new AndOrExpressionGenerator(this, parentBlock, binary);
+                default:
+                    throw new Exception();
+                }
+            }
             case FunctionExpressionSyntaxNode function:
             case IndexVariableSyntaxNode indexVariable:
             case InvocationExpressionSyntaxNode invocation:
@@ -28,10 +55,17 @@ namespace FastLua.CodeGen
             case LiteralExpressionSyntaxNode literal:
                 return new LiteralExpressionGenerator(Function, literal);
             case NamedVariableSyntaxNode nameVariable:
-                return Function.Locals[nameVariable.Variable.Target];
+            {
+                //We don't create from the expr syntax node, so confirm the type is correct.
+                var ret = Function.Locals[nameVariable.Variable.Target];
+                Debug.Assert(nameVariable.SpecializationType.GetVMSpecializationType() == ret.GetSingleType());
+                return ret;
+            }
             case TableExpressionSyntaxNode table:
+                throw new NotImplementedException();
             case UnaryExpressionSyntaxNode unary:
-            case VarargExpressionSyntaxNode vararg:
+                return new UnaryExpressionGenerator(this, parentBlock, unary);
+            case VarargExpressionSyntaxNode:
                 throw new NotImplementedException();
             default:
                 throw new Exception();

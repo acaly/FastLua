@@ -15,9 +15,8 @@ namespace FastLua.CodeGen
 
         public LiteralExpressionGenerator(FunctionGenerator func, LiteralExpressionSyntaxNode expr)
         {
-            _constIndex = func.Constants.Count;
-            _type = expr.SpecializationType.GetVMSpecializationType();
-            func.Constants.Add(_type switch
+            var type = expr.SpecializationType.GetVMSpecializationType();
+            _constIndex = func.Constants.AddUnspecialized(type switch
             {
                 VMSpecializationType.Nil => TypedValue.Nil,
                 VMSpecializationType.Bool => expr.BoolValue ? TypedValue.True : TypedValue.False,
@@ -27,8 +26,7 @@ namespace FastLua.CodeGen
                 _ => throw new Exception(), //Internal exception.
             });
 
-            //Reset to polymorphic (otherwise assigning to variables will need a conversion instruction).
-            _type = VMSpecializationType.Polymorphic;
+            _type = type.Deoptimize();
         }
 
         public override bool TryGetSingleType(out VMSpecializationType type)
