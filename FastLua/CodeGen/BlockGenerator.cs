@@ -31,7 +31,7 @@ namespace FastLua.CodeGen
             parentStack.Add(Stack);
             foreach (var upList in block.UpValueLists)
             {
-                var listLocal = UpvalStack.AddObj(1);
+                var listLocal = UpvalStack.AddObject();
                 _upvalInit.Add((listLocal, upList.Variables.Count));
                 for (int i = 0; i < upList.Variables.Count; ++i)
                 {

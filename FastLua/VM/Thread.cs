@@ -31,8 +31,8 @@ namespace FastLua.VM
 
         public void SetSigBlock(ref SignatureDesc desc, int pos)
         {
+            //Keep VLength.
             SigOffset = pos;
-            SigVLength = 0;
             SigDesc = desc;
         }
 
@@ -115,16 +115,6 @@ namespace FastLua.VM
             {
                 storage.Add(stack.ValueFrame[start + i]);
             }
-        }
-
-        //TODO this should be simplified: we no longer need type parameter
-        public void AppendVarargSig(VMSpecializationType type, int count)
-        {
-            //There can only be one vararg block.
-            Debug.Assert(SigVLength == 0);
-            SigDesc = SigDesc.WithVararg(type);
-            var (v, o) = type.GetStorageType();
-            if (v || o) SigVLength = count;
         }
     }
 }

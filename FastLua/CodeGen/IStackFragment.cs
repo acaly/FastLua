@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FastLua.VM;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,6 +13,14 @@ namespace FastLua.CodeGen
         int Length { get; }
         int Offset { get; }
         void Build(ref int offset);
+    }
+
+    internal interface IAllocatableStackFragment : IStackFragment
+    {
+        AllocatedLocal AddObject();
+        AllocatedLocal AddNumber();
+        AllocatedLocal AddUnspecialized();
+        int GetTypeOffset(int type);
     }
 
     internal class GroupStackFragment : IStackFragment
@@ -39,14 +48,16 @@ namespace FastLua.CodeGen
 
     internal struct AllocatedLocal
     {
-        public BlockStackFragment Owner;
+        public IAllocatableStackFragment Owner;
         public int InFragmentOffset;
-        public int Type; //0: unspecialized, 1: obj or num.
+        public int Type;
 
         public int Offset => Owner.GetTypeOffset(Type) + InFragmentOffset;
     }
 
-    internal class BlockStackFragment : IStackFragment
+    //Allocate local variables. Try to compress the size by grouping slots of
+    //the same type together (this will reorder slots).
+    internal class BlockStackFragment : IAllocatableStackFragment
     {
         private int _unspecializedLength;
         private int _objLength, _numLength;
@@ -56,6 +67,7 @@ namespace FastLua.CodeGen
 
         public int GetTypeOffset(int type)
         {
+            //type: 0 unspecialized, 1 obj or num.
             return type switch
             {
                 0 => Offset,
@@ -63,7 +75,7 @@ namespace FastLua.CodeGen
             };
         }
 
-        public AllocatedLocal AddUnspecialized(int size)
+        public AllocatedLocal AddUnspecialized()
         {
             var ret = new AllocatedLocal
             {
@@ -71,11 +83,11 @@ namespace FastLua.CodeGen
                 InFragmentOffset = Length,
                 Type = 0,
             };
-            _unspecializedLength += size;
+            _unspecializedLength += 1;
             return ret;
         }
 
-        public AllocatedLocal AddObj(int size)
+        public AllocatedLocal AddObject()
         {
             var ret = new AllocatedLocal
             {
@@ -83,11 +95,11 @@ namespace FastLua.CodeGen
                 InFragmentOffset = Length,
                 Type = 1,
             };
-            _objLength += size;
+            _objLength += 1;
             return ret;
         }
 
-        public AllocatedLocal AddNum(int size)
+        public AllocatedLocal AddNumber()
         {
             var ret = new AllocatedLocal
             {
@@ -95,7 +107,7 @@ namespace FastLua.CodeGen
                 InFragmentOffset = Length,
                 Type = 2,
             };
-            _numLength += size;
+            _numLength += 1;
             return ret;
         }
 
@@ -103,6 +115,59 @@ namespace FastLua.CodeGen
         {
             Offset = offset;
             offset += Length;
+        }
+    }
+
+    //Similar to BlockStackFragment but unlike it, this class will keep the order of
+    //allocated slots in a consistent way the VM's StackSignature class does. This
+    //must be used instead of BlockStackFragment when arranging slots in sig block.
+    internal class SequentialStackFragment : IAllocatableStackFragment
+    {
+        private StackSignatureBuilder _builder;
+
+        public int Length => _builder.Length;
+        public int Offset { get; private set; }
+
+        public void Build(ref int offset)
+        {
+            Offset = offset;
+            offset += Length;
+        }
+
+        public int GetTypeOffset(int type)
+        {
+            //No type.
+            return 0;
+        }
+
+        public AllocatedLocal AddNumber()
+        {
+            return new AllocatedLocal
+            {
+                Owner = this,
+                InFragmentOffset = _builder.AddNumber(),
+                Type = 0,
+            };
+        }
+
+        public AllocatedLocal AddObject()
+        {
+            return new AllocatedLocal
+            {
+                Owner = this,
+                InFragmentOffset = _builder.AddObject(),
+                Type = 0,
+            };
+        }
+
+        public AllocatedLocal AddUnspecialized()
+        {
+            return new AllocatedLocal
+            {
+                Owner = this,
+                InFragmentOffset = _builder.AddUnspecialized(),
+                Type = 0,
+            };
         }
     }
 

@@ -16,7 +16,7 @@ namespace FastLua.CodeGen
 
         public ComparisonBinaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block,
             BinaryExpressionSyntaxNode expr)
-            : base(block, CheckSwap(factory, block, expr, out var right, out var op, out var r), right,
+            : base(factory, block, CheckSwap(factory, block, expr, out var right, out var op, out var r), right,
                   expr.SpecializationType.GetVMSpecializationType())
         {
             _isReversed = r;

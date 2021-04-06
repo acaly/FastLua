@@ -393,15 +393,22 @@ namespace FastLua.VM
                 }
                 case Opcodes.VARG:
                 {
-                    //Currently only support unspecialized stack.
-                    Debug.Assert(lastWriteO == lastWriteV);
-                    thread.AppendVarargSig(stack.MetaData.VarargType, stack.MetaData.VarargLength);
-                    var stackStart = thread.SigOffset;
+                    int a = (int)((ii >> 16) & 0xFF);
+                    int b = (int)((ii >> 8) & 0xFF);
+
+                    thread.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b);
+                    thread.SigVLength = stack.MetaData.VarargLength;
                     for (int i = 0; i < stack.MetaData.VarargLength; ++i)
                     {
-                        stack.ValueFrame[i + stackStart] = thread.VarargStack[i + stack.MetaData.VarargStart];
+                        stack.ValueFrame[i + b] = thread.VarargStack[i + stack.MetaData.VarargStart];
                     }
-                    lastWriteO = lastWriteV = stackStart + stack.MetaData.VarargLength;
+                    lastWriteO = lastWriteV = b + stack.MetaData.VarargLength - 1;
+                    break;
+                }
+                case Opcodes.VARG1:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    stack.ValueFrame[a] = thread.VarargStack[stack.MetaData.VarargStart];
                     break;
                 }
                 case Opcodes.SIG:

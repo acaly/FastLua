@@ -30,7 +30,7 @@ namespace FastLua.CodeGen
             factory.Function.SigBlockFragment.Add(_tempFragment);
             for (int i = 0; i < _elements.Count; ++i)
             {
-                _temp.Add(_tempFragment.AddUnspecialized(1));
+                _temp.Add(_tempFragment.AddUnspecialized());
             }
         }
 

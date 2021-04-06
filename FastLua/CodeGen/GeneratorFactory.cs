@@ -103,7 +103,7 @@ namespace FastLua.CodeGen
             case IfStatementSyntaxNode @if:
                 throw new NotImplementedException();
             case InvocationStatementSyntaxNode invocation:
-                throw new NotImplementedException();
+                return new InvocationStatementGenerator(this, parentBlock, invocation);
             case LabelStatementSyntaxNode label:
                 return new LabelStatementGenerator(label);
             case LocalStatementSyntaxNode local:
@@ -112,7 +112,16 @@ namespace FastLua.CodeGen
                     local.ExpressionList);
             case NumericForBlockSyntaxNode numericFor:
             case RepeatBlockSyntaxNode repeat:
+                throw new NotImplementedException();
             case ReturnStatementSyntaxNode @return:
+                if (@return.Values.Expressions.Count == 0)
+                {
+                    return new ZeroReturnStatementGenerator();
+                }
+                else
+                {
+                    return new MultiReturnStatementGenerator(this, parentBlock, @return);
+                }
             case WhileBlockSyntaxNode @while:
                 throw new NotImplementedException();
             case BlockSyntaxNode block:

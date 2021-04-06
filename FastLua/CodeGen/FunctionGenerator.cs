@@ -18,6 +18,7 @@ namespace FastLua.CodeGen
         public readonly BlockStackFragment UpvalFragment;
         public readonly GroupStackFragment LocalFragment;
         public readonly OverlappedStackFragment SigBlockFragment;
+        public SequentialStackFragment CurrentSigBlock; //Used in creation step. Might be null (when no sig block).
         public readonly AllocatedLocal NullSlot; //Dest for discarded op results. Never read.
 
         public readonly SignatureManager SignatureManager;
@@ -40,7 +41,7 @@ namespace FastLua.CodeGen
             Stack.Add(SigBlockFragment);
             //Put null slot in upval. This should better be in local fragment, but
             //it's not necessary and we don't want to create a new BlockStackFragment.
-            NullSlot = UpvalFragment.AddUnspecialized(1);
+            NullSlot = UpvalFragment.AddUnspecialized();
         }
 
         public Proto Generate(FunctionDefinitionSyntaxNode funcNode)
@@ -61,7 +62,7 @@ namespace FastLua.CodeGen
             //Add upvalues
             foreach (var upList in funcNode.ImportedUpValueLists)
             {
-                var listLocal = UpvalFragment.AddObj(1);
+                var listLocal = UpvalFragment.AddObject();
                 for (int i = 0; i < upList.Variables.Count; ++i)
                 {
                     var upvalGenerator = new UpvalueExpressionGenerator(listLocal, i, upList.Variables[i]);

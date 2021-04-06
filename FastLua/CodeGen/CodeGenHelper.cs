@@ -29,17 +29,17 @@ namespace FastLua.CodeGen
             };
         }
 
-        public static AllocatedLocal AddSpecializedType(this BlockStackFragment frag, VMSpecializationType spec)
+        public static AllocatedLocal AddSpecializedType(this IAllocatableStackFragment frag, VMSpecializationType spec)
         {
             switch (spec & VMSpecializationType.StorageBits)
             {
             case VMSpecializationType.StorageValue:
-                return frag.AddNum(1);
+                return frag.AddNumber();
             case VMSpecializationType.StorageRef:
-                return frag.AddObj(1);
+                return frag.AddObject();
             case VMSpecializationType.StorageBoth:
             default:
-                return frag.AddUnspecialized(1);
+                return frag.AddUnspecialized();
             }
         }
 
