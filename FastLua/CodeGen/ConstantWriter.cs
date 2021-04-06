@@ -12,27 +12,27 @@ namespace FastLua.CodeGen
     {
         public int AddUnspecialized(TypedValue value)
         {
-
+            throw new NotImplementedException();
         }
 
         public int GetTrue()
         {
-
+            throw new NotImplementedException();
         }
 
         public int GetFalse()
         {
-
+            throw new NotImplementedException();
         }
 
         public int GetNil()
         {
-
+            throw new NotImplementedException();
         }
 
         public ImmutableArray<TypedValue> ToImmutableArray()
         {
-
+            throw new NotImplementedException();
         }
     }
 }

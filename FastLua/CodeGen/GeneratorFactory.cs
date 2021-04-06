@@ -17,6 +17,20 @@ namespace FastLua.CodeGen
             Function = function;
         }
 
+        public ExpressionGenerator CreateVariable(BlockGenerator parentBlock, VariableSyntaxNode expr)
+        {
+            switch (expr)
+            {
+            case NamedVariableSyntaxNode namedVariable:
+                //Same as expr (LocalVariableExprGen and UpvalueExprGen handles both get and set).
+                return CreateExpression(parentBlock, namedVariable);
+            case IndexVariableSyntaxNode indexVariable:
+                return new IndexVariableGenerator(this, parentBlock, indexVariable);
+            default:
+                throw new Exception();
+            }
+        }
+
         public ExpressionGenerator CreateExpression(BlockGenerator parentBlock, ExpressionSyntaxNode expr)
         {
             switch (expr)
@@ -49,7 +63,9 @@ namespace FastLua.CodeGen
                 }
             }
             case FunctionExpressionSyntaxNode function:
+                throw new NotImplementedException();
             case IndexVariableSyntaxNode indexVariable:
+                return new IndexExpressionGenerator(this, parentBlock, indexVariable);
             case InvocationExpressionSyntaxNode invocation:
                 throw new NotImplementedException();
             case LiteralExpressionSyntaxNode literal:
@@ -78,14 +94,18 @@ namespace FastLua.CodeGen
             {
             case AssignmentStatementSyntaxNode assignment:
                 return new AssignmentStatementGenerator(this, parentBlock,
-                    assignment.Variables.Select(v => CreateExpression(parentBlock, v)).ToList(),
+                    assignment.Variables.Select(v => CreateVariable(parentBlock, v)).ToList(),
                     assignment.Values);
             case GenericForBlockSyntaxNode genericFor:
-            case GotoStatementSyntaxNode @goto:
-            case IfStatementSyntaxNode @if:
-            case InvocationStatementSyntaxNode invocation:
-            case LabelStatementSyntaxNode label:
                 throw new NotImplementedException();
+            case GotoStatementSyntaxNode @goto:
+                return new GotoStatementGenerator(@goto.Target.Target);
+            case IfStatementSyntaxNode @if:
+                throw new NotImplementedException();
+            case InvocationStatementSyntaxNode invocation:
+                throw new NotImplementedException();
+            case LabelStatementSyntaxNode label:
+                return new LabelStatementGenerator(label);
             case LocalStatementSyntaxNode local:
                 return new AssignmentStatementGenerator(this, parentBlock,
                     local.Variables.Select(v => Function.Locals[v]).ToList(),

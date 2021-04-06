@@ -14,6 +14,7 @@ namespace FastLua.CodeGen
         private readonly AllocatedLocal _localInfo;
 
         public LocalVariableExpressionGenerator(BlockStackFragment stack, LocalVariableDefinitionSyntaxNode definition)
+            : base(0)
         {
             _type = definition.Specialization.GetVMSpecializationType();
             _localInfo = stack.AddSpecializedType(_type);
@@ -55,6 +56,10 @@ namespace FastLua.CodeGen
                 throw new NotImplementedException();
             }
             writer.WriteUUU(Opcodes.MOV, offset, srcIndex, 0);
+        }
+
+        public override void EmitDiscard(InstructionWriter writer)
+        {
         }
     }
 }

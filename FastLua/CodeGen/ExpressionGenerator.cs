@@ -11,6 +11,18 @@ namespace FastLua.CodeGen
 {
     internal abstract class ExpressionGenerator
     {
+        private readonly AllocatedLocal _null;
+
+        protected ExpressionGenerator(GeneratorFactory factory)
+        {
+            _null = factory.Function.NullSlot;
+        }
+
+        //Use a explicit ctor to prevent derived class to forget about the _null.
+        protected ExpressionGenerator(int _)
+        {
+        }
+
         public abstract bool TryGetSingleType(out VMSpecializationType type);
 
         public VMSpecializationType GetSingleType()
@@ -60,6 +72,8 @@ namespace FastLua.CodeGen
         //EmitPrep will NOT be called before this.
         public virtual void EmitDiscard(InstructionWriter writer)
         {
+            EmitPrep(writer);
+            EmitGet(writer, _null);
         }
     }
 }

@@ -15,6 +15,7 @@ namespace FastLua.CodeGen
         private readonly VMSpecializationType _type;
 
         public UpvalueExpressionGenerator(AllocatedLocal upvalList, int index, LocalVariableDefinitionSyntaxNode definition)
+            : base(0)
         {
             _upvalList = upvalList;
             _index = index;
@@ -57,6 +58,10 @@ namespace FastLua.CodeGen
                 throw new NotImplementedException();
             }
             writer.WriteUUU(Opcodes.USET, srcIndex, listOffset, _index);
+        }
+
+        public override void EmitDiscard(InstructionWriter writer)
+        {
         }
     }
 }

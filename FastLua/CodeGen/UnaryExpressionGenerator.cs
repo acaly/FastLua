@@ -17,6 +17,7 @@ namespace FastLua.CodeGen
         private readonly AllocatedLocal? _tmpSlot;
 
         public UnaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block, UnaryExpressionSyntaxNode expr)
+            : base(factory)
         {
             _operand = factory.CreateExpression(block, expr.Operand);
             _operator = expr.Operator;

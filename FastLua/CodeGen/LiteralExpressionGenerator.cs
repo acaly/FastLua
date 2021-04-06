@@ -13,7 +13,7 @@ namespace FastLua.CodeGen
         private readonly VMSpecializationType _type;
         private readonly int _constIndex;
 
-        public LiteralExpressionGenerator(FunctionGenerator func, LiteralExpressionSyntaxNode expr)
+        public LiteralExpressionGenerator(FunctionGenerator func, LiteralExpressionSyntaxNode expr) : base(0)
         {
             var type = expr.SpecializationType.GetVMSpecializationType();
             _constIndex = func.Constants.AddUnspecialized(type switch
@@ -48,6 +48,10 @@ namespace FastLua.CodeGen
                 throw new NotImplementedException();
             }
             writer.WriteUUU(Opcodes.K, dest.Offset, _constIndex, 0);
+        }
+
+        public override void EmitDiscard(InstructionWriter writer)
+        {
         }
     }
 }

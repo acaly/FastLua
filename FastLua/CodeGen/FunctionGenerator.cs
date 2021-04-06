@@ -18,6 +18,7 @@ namespace FastLua.CodeGen
         public readonly BlockStackFragment UpvalFragment;
         public readonly GroupStackFragment LocalFragment;
         public readonly OverlappedStackFragment SigBlockFragment;
+        public readonly AllocatedLocal NullSlot; //Dest for discarded op results. Never read.
 
         public readonly SignatureManager SignatureManager;
         public readonly FunctionLocalDictionary Locals = new();
@@ -37,6 +38,9 @@ namespace FastLua.CodeGen
             Stack.Add(UpvalFragment);
             Stack.Add(LocalFragment);
             Stack.Add(SigBlockFragment);
+            //Put null slot in upval. This should better be in local fragment, but
+            //it's not necessary and we don't want to create a new BlockStackFragment.
+            NullSlot = UpvalFragment.AddUnspecialized(1);
         }
 
         public Proto Generate(FunctionDefinitionSyntaxNode funcNode)

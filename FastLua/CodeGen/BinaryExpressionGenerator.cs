@@ -25,8 +25,9 @@ namespace FastLua.CodeGen
         private readonly AllocatedLocal? _leftTemp, _rightTemp;
 
         //This is used by the public ctor and ComparisonBinaryExpressionGenerator.
-        protected BinaryExpressionGenerator(BlockGenerator block, ExpressionGenerator left, ExpressionGenerator right,
-            VMSpecializationType type)
+        protected BinaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block,
+            ExpressionGenerator left, ExpressionGenerator right, VMSpecializationType type)
+            : base(factory)
         {
             _type = type;
 
@@ -69,7 +70,7 @@ namespace FastLua.CodeGen
 
         //This public ctor works for arithmetic binary ops.
         public BinaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block, BinaryExpressionSyntaxNode expr)
-            : this(block, factory.CreateExpression(block, expr.Left), factory.CreateExpression(block, expr.Right),
+            : this(factory, block, factory.CreateExpression(block, expr.Left), factory.CreateExpression(block, expr.Right),
                   expr.SpecializationType.GetVMSpecializationType())
         {
             _opcode = expr.Operator.V switch

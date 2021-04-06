@@ -16,6 +16,7 @@ namespace FastLua.CodeGen
         private readonly BlockStackFragment _tempFragment;
 
         public ConcatBinaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block, BinaryExpressionSyntaxNode expr)
+            : base(factory)
         {
             ExtractConcatList(factory, block, expr, _elements);
             _type = expr.SpecializationType.GetVMSpecializationType();

@@ -17,6 +17,7 @@ namespace FastLua.CodeGen
         private readonly AllocatedLocal? _leftStack, _rightStack;
 
         public AndOrExpressionGenerator(GeneratorFactory factory, BlockGenerator block, BinaryExpressionSyntaxNode expr)
+            : base(factory)
         {
             _type = expr.SpecializationType.GetVMSpecializationType();
             _left = factory.CreateExpression(block, expr.Left);
