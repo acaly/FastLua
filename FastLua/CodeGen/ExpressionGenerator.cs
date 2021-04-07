@@ -56,7 +56,7 @@ namespace FastLua.CodeGen
         //For vararg expr: calculate the value and write to stack at sigblock's location, with the given sig index.
         //The sigIndex is the index into proto's signature list. This should be the out signature of function calls.
         //EmitPrep will be called before this.
-        public virtual void EmitGet(InstructionWriter writer, SequentialStackFragment sigBlock, int sigIndex)
+        public virtual void EmitGet(InstructionWriter writer, IStackFragment sigBlock, int sigIndex, bool keepSig)
         {
             throw new NotSupportedException();
         }

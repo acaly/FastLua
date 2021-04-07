@@ -181,7 +181,7 @@ namespace FastLua.CodeGen
             if (_variableValue is not null)
             {
                 _variableValue.EmitPrep(writer);
-                _variableValue.EmitGet(writer, _variableFragment, _variableSignature);
+                _variableValue.EmitGet(writer, _variableFragment, _variableSignature, keepSig: false);
                 foreach (var v in _variableAssignment)
                 {
                     v.VariableGenerator.EmitSet(writer, v.TempSlot, v.Type);

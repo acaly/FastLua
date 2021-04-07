@@ -3,6 +3,7 @@ using FastLua.VM;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,14 +18,16 @@ namespace FastLua.CodeGen
         public readonly BlockStackFragment ArgumentFragment;
         public readonly BlockStackFragment UpvalFragment;
         public readonly GroupStackFragment LocalFragment;
-        public readonly OverlappedStackFragment SigBlockFragment;
-        public SequentialStackFragment CurrentSigBlock; //Used in creation step. Might be null (when no sig block).
+        private readonly OverlappedStackFragment _rootSigBlockFragment;
+        public OverlappedStackFragment SigBlockFragment;
         public readonly AllocatedLocal NullSlot; //Dest for discarded op results. Never read.
 
         public readonly SignatureManager SignatureManager;
         public readonly FunctionLocalDictionary Locals = new();
         public readonly List<Proto> ChildFunctions = new();
         public readonly ConstantWriter Constants = new();
+
+        public FunctionDefinitionSyntaxNode FunctionDefinition { get; private set; }
 
         public FunctionGenerator(SignatureManager signatureManager)
         {
@@ -34,11 +37,12 @@ namespace FastLua.CodeGen
             ArgumentFragment = new();
             UpvalFragment = new();
             LocalFragment = new();
-            SigBlockFragment = new();
+            _rootSigBlockFragment = new();
+            SigBlockFragment = _rootSigBlockFragment;
             Stack.Add(ArgumentFragment);
             Stack.Add(UpvalFragment);
             Stack.Add(LocalFragment);
-            Stack.Add(SigBlockFragment);
+            Stack.Add(_rootSigBlockFragment);
             //Put null slot in upval. This should better be in local fragment, but
             //it's not necessary and we don't want to create a new BlockStackFragment.
             NullSlot = UpvalFragment.AddUnspecialized();
@@ -46,8 +50,11 @@ namespace FastLua.CodeGen
 
         public Proto Generate(FunctionDefinitionSyntaxNode funcNode)
         {
+            FunctionDefinition = funcNode;
+
             //Add parameters.
             SignatureWriter paramTypeList = new();
+            SignatureWriter varargTypeList = new();
             foreach (var p in funcNode.Parameters)
             {
                 var paramGenerator = new LocalVariableExpressionGenerator(ArgumentFragment, p);
@@ -56,7 +63,9 @@ namespace FastLua.CodeGen
             }
             if (funcNode.HasVararg)
             {
-                paramTypeList.AppendVararg(funcNode.VarargType.GetVMSpecializationType());
+                var varargType = funcNode.VarargType.GetVMSpecializationType();
+                paramTypeList.AppendVararg(varargType);
+                varargTypeList.AppendVararg(varargType);
             }
 
             //Add upvalues
@@ -73,6 +82,7 @@ namespace FastLua.CodeGen
             //Create main block (this will recursively create all blocks and thus all locals).
             var factory = new GeneratorFactory(this);
             var block = factory.CreateStatement(null, funcNode);
+            CheckStatementState();
 
             //Build locals.
             int stackLength = 0;
@@ -104,6 +114,7 @@ namespace FastLua.CodeGen
             {
                 ChildFunctions = ChildFunctions.ToImmutableArray(),
                 ParameterSig = paramTypeList.GetSignature(SignatureManager).s.GetDesc(),
+                VarargSig = varargTypeList.GetSignature(SignatureManager).s.GetDesc(),
                 SigDesc = SignatureManager.ToArray(),
                 Constants = Constants.ToImmutableArray(),
                 Instructions = instructions.ToImmutableArray(),
@@ -112,6 +123,15 @@ namespace FastLua.CodeGen
                 SigRegionOffset = SigBlockFragment.Offset,
                 UpvalRegionOffset = UpvalFragment.Offset,
             };
+        }
+
+        //Called after each statement (by BlockGenerator) to check the state of the generator.
+        public void CheckStatementState()
+        {
+            //Confirm that anyone who changes sig block (should only be InvocationExpr) changes it back.
+            Debug.Assert(SigBlockFragment == _rootSigBlockFragment);
+
+            //TODO reset temp allocator (should this be done in a method called "Check"?)
         }
     }
 }

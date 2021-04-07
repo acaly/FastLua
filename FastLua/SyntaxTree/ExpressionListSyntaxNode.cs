@@ -11,6 +11,14 @@ namespace FastLua.SyntaxTree
     {
         public List<ExpressionSyntaxNode> Expressions { get; } = new();
 
+        //Note on the type of the last expression:
+        //The last expression may also be specialized, however, there are some differences:
+        //1. It must write either one fixed, or one vararg in its WriteSig method.
+        //2. When providing vararg, it always starts at an aligned stack slot (see comments
+        //   in StackSignatureBuilder).
+        //Note that for 1, we currently cannot specialize tuples, but this simplifies the sig
+        //adjustment in RETN and CALL/CALLC.
+
         public bool HasVararg
         {
             get

@@ -53,7 +53,7 @@ namespace FastLua.CodeGen
             foreach (var statement in block.Statements)
             {
                 _generators.Add(factory.CreateStatement(this, statement));
-                //TODO reset temp allocator
+                factory.Function.CheckStatementState();
             }
         }
 

@@ -392,17 +392,29 @@ namespace FastLua.VM
                     break;
                 }
                 case Opcodes.VARG:
+                case Opcodes.VARGC:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
 
-                    thread.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b);
-                    thread.SigVLength = stack.MetaData.VarargLength;
                     for (int i = 0; i < stack.MetaData.VarargLength; ++i)
                     {
                         stack.ValueFrame[i + b] = thread.VarargStack[i + stack.MetaData.VarargStart];
                     }
+
+                    //Overwrite sig as a vararg.
+                    thread.SetSigBlockVararg(ref stack.MetaData.Func.VarargSig, b, stack.MetaData.VarargLength);
+                    //Then adjust to requested (this is needed in assignment statement).
+                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref stack,
+                        ref stack.MetaData.Func.SigDesc[a], null, out _);
+                    Debug.Assert(adjustmentSuccess);
+
                     lastWriteO = lastWriteV = b + stack.MetaData.VarargLength - 1;
+
+                    if ((Opcodes)(ii >> 24) == Opcodes.VARGC)
+                    {
+                        thread.ClearSigBlock();
+                    }
                     break;
                 }
                 case Opcodes.VARG1:

@@ -67,7 +67,7 @@ namespace FastLua.CodeGen
             case IndexVariableSyntaxNode indexVariable:
                 return new IndexExpressionGenerator(this, parentBlock, indexVariable);
             case InvocationExpressionSyntaxNode invocation:
-                throw new NotImplementedException();
+                return new InvocationExpressionGenerator(this, parentBlock, invocation);
             case LiteralExpressionSyntaxNode literal:
                 return new LiteralExpressionGenerator(Function, literal);
             case NamedVariableSyntaxNode nameVariable:
@@ -81,8 +81,8 @@ namespace FastLua.CodeGen
                 throw new NotImplementedException();
             case UnaryExpressionSyntaxNode unary:
                 return new UnaryExpressionGenerator(this, parentBlock, unary);
-            case VarargExpressionSyntaxNode:
-                throw new NotImplementedException();
+            case VarargExpressionSyntaxNode vararg:
+                return new VarargExpressionGenerator(Function.FunctionDefinition, vararg);
             default:
                 throw new Exception();
             }

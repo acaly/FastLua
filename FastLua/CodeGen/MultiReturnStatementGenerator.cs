@@ -13,7 +13,7 @@ namespace FastLua.CodeGen
     {
         private readonly List<(ExpressionGenerator g, AllocatedLocal stack)> _fixedExpr = new();
         private readonly ExpressionGenerator _varargExpr;
-        private readonly SequentialStackFragment _varargStack;
+        private readonly GroupStackFragment _varargStack;
         private readonly int _varargSig;
 
         private readonly int _retSig;
@@ -51,12 +51,26 @@ namespace FastLua.CodeGen
                 }
                 //The last is similar but should be a SequentialStackFragment instead of a slot.
                 {
-                    var stack = new SequentialStackFragment();
-                    mergedSigFragment.Add(stack);
-                    factory.Function.CurrentSigBlock = stack;
+                    //This is copied from InvocationExpressionGenerator. See comment there for
+                    //the meaning of these two fragments.
+                    var stackOverlapFragment = new OverlappedStackFragment();
+                    mergedSigFragment.Add(stackOverlapFragment);
 
+                    var stack = new GroupStackFragment();
+                    stackOverlapFragment.Add(stack);
+
+                    //Push a new sig fragment.
+                    var lastOverlapFragment = factory.Function.SigBlockFragment;
+                    factory.Function.SigBlockFragment = stackOverlapFragment;
+
+                    //Create the vararg expression.
                     var e = stat.Values.Expressions[^1];
                     var g = factory.CreateExpression(block, e);
+
+                    //Pop the sig fragment.
+                    Debug.Assert(factory.Function.SigBlockFragment == stackOverlapFragment);
+                    factory.Function.SigBlockFragment = lastOverlapFragment;
+
                     g.WritSig(sigWriter);
                     _varargExpr = g;
                     _varargStack = stack;
@@ -83,8 +97,11 @@ namespace FastLua.CodeGen
             }
             if (_varargExpr is not null)
             {
+                //Note that the sig adjustment by RETN follows the rule of keeping vararg length
+                //untouched (see Thread.SetSigBlock). This assumes the _varargExpr writes either
+                //a fixed or a vararg slot in its WriteSig method. See comment in ExprList syntax.
                 _varargExpr.EmitPrep(writer);
-                _varargExpr.EmitGet(writer, _varargStack, _varargSig);
+                _varargExpr.EmitGet(writer, _varargStack, _varargSig, keepSig: true);
             }
             writer.WriteUUU(Opcodes.RETN, _retSig, _sigFragment.Offset, 0);
         }

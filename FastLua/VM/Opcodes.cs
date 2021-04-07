@@ -66,6 +66,7 @@ namespace FastLua.VM
         CALL,
         CALLC,
         VARG,
+        VARGC,
         VARG1,
 
         //Signature block.

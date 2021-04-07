@@ -36,6 +36,16 @@ namespace FastLua.VM
             SigDesc = desc;
         }
 
+        //Set the sig to contain only a vararg part.
+        //This is always followed by an adjustment.
+        public void SetSigBlockVararg(ref SignatureDesc desc, int pos, int length)
+        {
+            Debug.Assert(desc.SigFLength == 0);
+            SigOffset = pos;
+            SigDesc = desc;
+            SigVLength = length;
+        }
+
         //Adjust sig block. This operation handles sig block generated inside the same function
         //so it should never fail (or it's a program error), and we don't really need to check.
         public void ResizeSigBlockLeft(ref SignatureDesc desc, int pos)

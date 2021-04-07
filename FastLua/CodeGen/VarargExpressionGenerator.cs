@@ -47,14 +47,14 @@ namespace FastLua.CodeGen
             writer.WriteUUU(Opcodes.VARG1, dest.Offset, 0, 0);
         }
 
-        public override void EmitGet(InstructionWriter writer, SequentialStackFragment sigBlock, int sigIndex)
+        public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, int sigIndex, bool keepSig)
         {
             Debug.Assert(_isVararg);
             if (sigIndex > 255 || sigBlock.Offset > 255)
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.VARG, sigIndex, sigBlock.Offset, 0);
+            writer.WriteUUU(keepSig ? Opcodes.VARG : Opcodes.VARGC, sigIndex, sigBlock.Offset, 0);
         }
 
         public override void WritSig(SignatureWriter writer)

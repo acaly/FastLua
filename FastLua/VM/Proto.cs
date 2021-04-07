@@ -14,7 +14,10 @@ namespace FastLua.VM
         public ImmutableArray<Proto> ChildFunctions;
         public SignatureDesc[] SigDesc; //Should be immutable, but VM wants to take ref to it to avoid copying.
 
+        //Sig type of all parameters (vararg as a vararg part).
         public SignatureDesc ParameterSig;
+        //The sig of the vararg param (should be a sig with zero fixed length).
+        public SignatureDesc VarargSig;
 
         public int StackSize;
 

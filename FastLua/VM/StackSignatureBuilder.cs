@@ -9,6 +9,11 @@ namespace FastLua.VM
     //Used by StackSignature and CodeGen's SequentialStackLayout. This is provided
     //to keep both to be consistent, with each other.
     //Note that this is a mutable struct. Use ref if passed around.
+    //Note: when supporting vararg part, the vararg (even when specialized) should
+    //start at StackSignatureBuilder.Length. This ensures the vararg is always
+    //at aligned position. This simplifies the stack allocation for invocations and
+    //the sig adjustment in RETN and CALL/CALLC.
+    //Also see comment in InvocationExpressionGenerator.
     internal struct StackSignatureBuilder
     {
         private int _obj, _num;

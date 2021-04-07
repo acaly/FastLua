@@ -23,7 +23,12 @@ namespace FastLua.CodeGen
         int GetTypeOffset(int type);
     }
 
-    internal class GroupStackFragment : IStackFragment
+    internal interface IGroupAllocatableStackFragment : IStackFragment
+    {
+        void Add(IStackFragment fragment);
+    }
+
+    internal class GroupStackFragment : IGroupAllocatableStackFragment
     {
         private readonly List<IStackFragment> _children = new();
 
@@ -171,7 +176,7 @@ namespace FastLua.CodeGen
         }
     }
 
-    internal class OverlappedStackFragment : IStackFragment
+    internal class OverlappedStackFragment : IGroupAllocatableStackFragment
     {
         private readonly List<IStackFragment> _children = new();
         public int Length { get; private set; }
