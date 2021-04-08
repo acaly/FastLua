@@ -30,7 +30,7 @@ namespace FastLuaExample
 end
 ", 1));
 
-        private static readonly string _code2 = @"local count = 0";
+        private static readonly string _code2 = @"local count = f(0)";
 
         private static readonly string _code3 = @"
 return function()

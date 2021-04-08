@@ -10,29 +10,46 @@ namespace FastLua.CodeGen
 {
     internal class ConstantWriter
     {
+        private readonly List<TypedValue> _values = new();
+        private int? _utrue, _ufalse, _unil;
+
         public int AddUnspecialized(TypedValue value)
         {
-            throw new NotImplementedException();
+            var ret = _values.Count;
+            _values.Add(value);
+            return ret;
         }
 
-        public int GetTrue()
+        public int GetUnspecializedTrue()
         {
-            throw new NotImplementedException();
+            if (!_utrue.HasValue)
+            {
+                _utrue = AddUnspecialized(TypedValue.True);
+            }
+            return _utrue.Value;
         }
 
-        public int GetFalse()
+        public int GetUnspecializedFalse()
         {
-            throw new NotImplementedException();
+            if (!_ufalse.HasValue)
+            {
+                _ufalse = AddUnspecialized(TypedValue.False);
+            }
+            return _ufalse.Value;
         }
 
-        public int GetNil()
+        public int GetUnspecializedNil()
         {
-            throw new NotImplementedException();
+            if (!_unil.HasValue)
+            {
+                _unil = AddUnspecialized(TypedValue.Nil);
+            }
+            return _unil.Value;
         }
 
         public ImmutableArray<TypedValue> ToImmutableArray()
         {
-            throw new NotImplementedException();
+            return _values.ToImmutableArray();
         }
     }
 }

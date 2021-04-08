@@ -34,18 +34,23 @@ namespace FastLua.CodeGen
             SignatureManager = signatureManager;
 
             Stack = new();
+
             ArgumentFragment = new();
+            Stack.Add(ArgumentFragment);
+
             UpvalFragment = new();
+            Stack.Add(UpvalFragment);
+
+            var nullSlotFragment = new BlockStackFragment();
+            Stack.Add(nullSlotFragment);
+            NullSlot = nullSlotFragment.AddUnspecialized();
+
             LocalFragment = new();
+            Stack.Add(LocalFragment);
+
             _rootSigBlockFragment = new();
             SigBlockFragment = _rootSigBlockFragment;
-            Stack.Add(ArgumentFragment);
-            Stack.Add(UpvalFragment);
-            Stack.Add(LocalFragment);
             Stack.Add(_rootSigBlockFragment);
-            //Put null slot in upval. This should better be in local fragment, but
-            //it's not necessary and we don't want to create a new BlockStackFragment.
-            NullSlot = UpvalFragment.AddUnspecialized();
         }
 
         public Proto Generate(FunctionDefinitionSyntaxNode funcNode)

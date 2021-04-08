@@ -142,7 +142,7 @@ namespace FastLua.CodeGen
         public int GetTypeOffset(int type)
         {
             //No type.
-            return 0;
+            return Offset;
         }
 
         public AllocatedLocal AddNumber()

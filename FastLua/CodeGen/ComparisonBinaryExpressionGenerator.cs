@@ -21,8 +21,8 @@ namespace FastLua.CodeGen
         {
             _isReversed = r;
             _opcode = op;
-            _true = factory.Function.Constants.GetTrue();
-            _false = factory.Function.Constants.GetFalse();
+            _true = factory.Function.Constants.GetUnspecializedTrue();
+            _false = factory.Function.Constants.GetUnspecializedFalse();
             if (expr.SpecializationType.GetVMSpecializationType() != VMSpecializationType.Polymorphic)
             {
                 //Code generated below only supports polymorphic.

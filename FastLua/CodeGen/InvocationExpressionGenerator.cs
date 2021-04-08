@@ -104,7 +104,7 @@ namespace FastLua.CodeGen
             }
             if (!expr.Args.HasVararg)
             {
-                for (int i = 0; i < expr.Args.Expressions.Count - 1; ++i)
+                for (int i = 0; i < expr.Args.Expressions.Count; ++i)
                 {
                     AddParameter(factory.CreateExpression(block, expr.Args.Expressions[i]));
                 }
