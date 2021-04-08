@@ -85,7 +85,7 @@ return function()
 end
 ";
 
-        public static void Main()
+        public static void Mainx()
         {
             var codeReader = new StringReader(_code2);
             var rawTokens = new LuaRawTokenizer();
@@ -138,7 +138,7 @@ end
             Console.WriteLine(clock.ElapsedMilliseconds);
         }
 
-        public static void Main_Moonsharp()
+        public static void Main_MoonSharp()
         {
             var script = new MoonSharp.Interpreter.Script();
             var f = script.LoadString(_code2).Function;
@@ -147,6 +147,22 @@ end
             for (int i = 0; i < 1000000; ++i)
             {
                 f.Call();
+            }
+            Console.WriteLine(clock.ElapsedMilliseconds);
+        }
+
+        public static void Main_KopiLua()
+        {
+            var lua = KopiLua.Lua.luaL_newstate();
+            KopiLua.Lua.luaL_loadstring(lua, new(_code2));
+
+            var clock = Stopwatch.StartNew();
+            for (int i = 0; i < 1000000; ++i)
+            {
+                KopiLua.Lua.lua_pushvalue(lua, -1);
+                KopiLua.Lua.lua_call(lua, 0, 1);
+                var r = KopiLua.Lua.lua_tonumber(lua, -1);
+                KopiLua.Lua.lua_pop(lua, 1);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);
         }
