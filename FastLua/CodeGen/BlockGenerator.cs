@@ -33,6 +33,7 @@ namespace FastLua.CodeGen
             {
                 var listLocal = UpvalStack.AddObject();
                 _upvalInit.Add((listLocal, upList.Variables.Count));
+                factory.Function.UpvalueListSlots.Add(upList, listLocal);
                 for (int i = 0; i < upList.Variables.Count; ++i)
                 {
                     var upvalGenerator = new UpvalueExpressionGenerator(listLocal, i, upList.Variables[i].Target);

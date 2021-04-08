@@ -30,7 +30,7 @@ namespace FastLuaExample
 end
 ", 1));
 
-        private static readonly string _code2 = @"local count = f(0)";
+        private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
 
         private static readonly string _code3 = @"
 return function()
@@ -101,9 +101,36 @@ end
             parser.Parse();
 
             var ast = builder.Finish();
-            var sigManager = new SignatureManager();
-            var funcGen = new FunctionGenerator(sigManager);
-            var proto = funcGen.Generate(ast.RootFunction);
+
+            Proto CompileFunction(ulong id)
+            {
+                //TODO should add root function to FUnctions list.
+                if (id == ast.RootFunction.GlobalId)
+                {
+                    var sigManager = new SignatureManager();
+                    var funcGen = new FunctionGenerator(sigManager);
+                    return funcGen.Generate(ast.RootFunction, CompileFunction);
+                }
+                else
+                {
+                    var func = ast.Functions.Single(func => func.GlobalId == id);
+                    var sigManager = new SignatureManager();
+                    var funcGen = new FunctionGenerator(sigManager);
+                    return funcGen.Generate(func, CompileFunction);
+                }
+            }
+
+            var proto = CompileFunction(ast.RootFunction.GlobalId);
+
+            var closure = new LClosure
+            {
+                Proto = proto,
+                UpvalLists = Array.Empty<TypedValue[]>(),
+            };
+            var thread = new Thread();
+            var stack = thread.Stack.Allocate(1);
+            thread.ClearSigBlock();
+            LuaInterpreter.Execute(thread, closure, ref stack);
         }
 
         public static void Interpreter()
@@ -112,7 +139,7 @@ end
             var (sig2, _) = StackSignature.CreateUnspecialized(2);
             var proto2 = new Proto
             {
-                ChildFunctions = ImmutableArray<Proto>.Empty,
+                ChildFunctions = ImmutableArray<(Proto, ImmutableArray<int>)>.Empty,
                 Constants = ImmutableArray.Create(TypedValue.MakeDouble(1)),
                 SigDesc = new SignatureDesc[]
                 {
@@ -136,7 +163,7 @@ end
             };
             var proto1 = new Proto
             {
-                ChildFunctions = ImmutableArray<Proto>.Empty,
+                ChildFunctions = ImmutableArray<(Proto, ImmutableArray<int>)>.Empty,
                 Constants = new TypedValue[]
                 {
                     TypedValue.MakeDouble(1),

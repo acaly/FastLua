@@ -11,7 +11,7 @@ namespace FastLua.VM
     {
         public ImmutableArray<uint> Instructions;
         public ImmutableArray<TypedValue> Constants;
-        public ImmutableArray<Proto> ChildFunctions;
+        public ImmutableArray<(Proto proto, ImmutableArray<int> upvalSlot)> ChildFunctions;
         public SignatureDesc[] SigDesc; //Should be immutable, but VM wants to take ref to it to avoid copying.
 
         //Sig type of all parameters (vararg as a vararg part).

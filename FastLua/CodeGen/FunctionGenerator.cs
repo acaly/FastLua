@@ -24,10 +24,12 @@ namespace FastLua.CodeGen
 
         public readonly SignatureManager SignatureManager;
         public readonly FunctionLocalDictionary Locals = new();
-        public readonly List<Proto> ChildFunctions = new();
+        public readonly List<(Proto, ImmutableArray<int>)> ChildFunctions = new();
         public readonly ConstantWriter Constants = new();
+        public readonly Dictionary<UpValueListSyntaxNode, AllocatedLocal> UpvalueListSlots = new();
 
         public FunctionDefinitionSyntaxNode FunctionDefinition { get; private set; }
+        public Func<ulong, Proto> ChildFunctionCompiler { get; private set; }
 
         public FunctionGenerator(SignatureManager signatureManager)
         {
@@ -53,9 +55,10 @@ namespace FastLua.CodeGen
             Stack.Add(_rootSigBlockFragment);
         }
 
-        public Proto Generate(FunctionDefinitionSyntaxNode funcNode)
+        public Proto Generate(FunctionDefinitionSyntaxNode funcNode, Func<ulong, Proto> childFunctionCompiler)
         {
             FunctionDefinition = funcNode;
+            ChildFunctionCompiler = childFunctionCompiler;
 
             //Add parameters.
             SignatureWriter paramTypeList = new();

@@ -55,8 +55,7 @@ namespace FastLua.VM
             if (SigDesc.SigTypeId == 0)
             {
                 //New sig block at given place.
-                //Note that the (o,v) is the last item (inclusive) in the block.
-                SigOffset = pos - desc.SigFLength;
+                SigOffset = pos;
                 SigDesc = desc;
             }
             else

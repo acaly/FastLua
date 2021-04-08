@@ -63,7 +63,7 @@ namespace FastLua.CodeGen
                 }
             }
             case FunctionExpressionSyntaxNode function:
-                throw new NotImplementedException();
+                return new FunctionExpressionGenerator(this, function);
             case IndexVariableSyntaxNode indexVariable:
                 return new IndexExpressionGenerator(this, parentBlock, indexVariable);
             case InvocationExpressionSyntaxNode invocation:

@@ -304,16 +304,16 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    int u = thread.SigOffset;
-                    int n = thread.SigVLength;
+
+                    var (closureProto, upvalLists) = stack.MetaData.Func.ChildFunctions[b];
                     var nclosure = new LClosure
                     {
-                        Proto = stack.MetaData.Func.ChildFunctions[b],
-                        UpvalLists = new TypedValue[n][],
+                        Proto = closureProto,
+                        UpvalLists = new TypedValue[upvalLists.Length][],
                     };
-                    for (int i = 0; i < n; ++i)
+                    for (int i = 0; i < upvalLists.Length; ++i)
                     {
-                        nclosure.UpvalLists[i] = (TypedValue[])stack.ValueFrame[u + i].Object;
+                        nclosure.UpvalLists[i] = (TypedValue[])stack.ValueFrame[upvalLists[i]].Object;
                     }
                     stack.ValueFrame[a] = TypedValue.MakeLClosure(nclosure);
                     lastWriteO = lastWriteV = a;
