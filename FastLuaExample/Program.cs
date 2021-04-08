@@ -102,19 +102,18 @@ end
 
             var ast = builder.Finish();
 
+            var sigManager = new SignatureManager();
             Proto CompileFunction(ulong id)
             {
                 //TODO should add root function to FUnctions list.
                 if (id == ast.RootFunction.GlobalId)
                 {
-                    var sigManager = new SignatureManager();
                     var funcGen = new FunctionGenerator(sigManager);
                     return funcGen.Generate(ast.RootFunction, CompileFunction);
                 }
                 else
                 {
                     var func = ast.Functions.Single(func => func.GlobalId == id);
-                    var sigManager = new SignatureManager();
                     var funcGen = new FunctionGenerator(sigManager);
                     return funcGen.Generate(func, CompileFunction);
                 }
@@ -129,8 +128,27 @@ end
             };
             var thread = new Thread();
             var stack = thread.Stack.Allocate(1);
-            thread.ClearSigBlock();
-            LuaInterpreter.Execute(thread, closure, ref stack);
+
+            var clock = Stopwatch.StartNew();
+            for (int i = 0; i < 1000000; ++i)
+            {
+                thread.ClearSigBlock();
+                LuaInterpreter.Execute(thread, closure, ref stack);
+            }
+            Console.WriteLine(clock.ElapsedMilliseconds);
+        }
+
+        public static void Main_Moonsharp()
+        {
+            var script = new MoonSharp.Interpreter.Script();
+            var f = script.LoadString(_code2).Function;
+
+            var clock = Stopwatch.StartNew();
+            for (int i = 0; i < 1000000; ++i)
+            {
+                f.Call();
+            }
+            Console.WriteLine(clock.ElapsedMilliseconds);
         }
 
         public static void Interpreter()
