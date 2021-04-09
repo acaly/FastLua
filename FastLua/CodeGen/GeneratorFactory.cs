@@ -101,7 +101,7 @@ namespace FastLua.CodeGen
             case GotoStatementSyntaxNode @goto:
                 return new GotoStatementGenerator(@goto.Target.Target);
             case IfStatementSyntaxNode @if:
-                throw new NotImplementedException();
+                return new IfStatementGenerator(this, parentBlock, @if);
             case InvocationStatementSyntaxNode invocation:
                 return new InvocationStatementGenerator(this, parentBlock, invocation);
             case LabelStatementSyntaxNode label:

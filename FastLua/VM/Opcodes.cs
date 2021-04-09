@@ -14,6 +14,8 @@ namespace FastLua.VM
 
         ISLT,
         ISLE,
+        ISNLT,
+        ISNLE,
         ISEQ,
         ISNE,
 

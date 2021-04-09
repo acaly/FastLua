@@ -88,6 +88,26 @@ namespace FastLua.VM
                     }
                     break;
                 }
+                case Opcodes.ISNLT:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    int b = (int)((ii >> 8) & 0xFF);
+                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) < 0))
+                    {
+                        pc += (sbyte)(byte)(ii & 0xFF);
+                    }
+                    break;
+                }
+                case Opcodes.ISNLE:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    int b = (int)((ii >> 8) & 0xFF);
+                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) <= 0))
+                    {
+                        pc += (sbyte)(byte)(ii & 0xFF);
+                    }
+                    break;
+                }
                 case Opcodes.ISEQ:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
@@ -102,7 +122,8 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (CompareValueNE(stack.ValueFrame[a], stack.ValueFrame[b]))
+                    //!(cmp == 0) will return true for NaN comparison.
+                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) == 0))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }

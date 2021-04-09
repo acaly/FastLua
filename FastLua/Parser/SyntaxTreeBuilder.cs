@@ -533,6 +533,11 @@ namespace FastLua.Parser
             private T OpenBlockInternal<T>(T block) where T : BlockSyntaxNode
             {
                 Add(block);
+                return OpenBlockInternalNoAdd(block);
+            }
+
+            private T OpenBlockInternalNoAdd<T>(T block) where T : BlockSyntaxNode
+            {
                 var builder = new BlockBuilder(this, block);
                 _parentFunction.BlockStack.Add(builder);
                 _parentFunction.Owner.CurrentBlock = builder;
@@ -553,7 +558,8 @@ namespace FastLua.Parser
 
             public ThenElseBlockSyntaxNode OpenThenElseBlock(ExpressionSyntaxNode condition)
             {
-                return OpenBlockInternal(new ThenElseBlockSyntaxNode()
+                //ThenElse is under the IfStatementSyntax, not added to the block.
+                return OpenBlockInternalNoAdd(new ThenElseBlockSyntaxNode()
                 {
                     Condition = condition,
                 });

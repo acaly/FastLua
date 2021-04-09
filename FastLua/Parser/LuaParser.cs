@@ -415,7 +415,6 @@ namespace FastLua.Parser
         private void IfStat(ref Token t)
         {
             var ret = _output.CurrentBlock.AddIfStatement();
-            _output.CurrentBlock.Add(ret);
             do
             {
                 Next(ref t); //Skip if or elseif.
@@ -431,8 +430,8 @@ namespace FastLua.Parser
                 ret.Clauses.Add(block);
                 StatList(ref t);
                 _output.CurrentBlock.Close(block);
-                CheckAndNext(ref t, LuaTokenType.End);
             }
+            CheckAndNext(ref t, LuaTokenType.End);
         }
 
         #endregion

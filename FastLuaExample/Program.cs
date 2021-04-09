@@ -30,7 +30,8 @@ namespace FastLuaExample
 end
 ", 1));
 
-        private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
+        //private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
+        private static readonly string _code2 = @"local x = 3 if x == 2 then x = 3 elseif x == 1 then x = 4 else x = 5 end return x";
 
         private static readonly string _code3 = @"
 return function()
@@ -85,7 +86,7 @@ return function()
 end
 ";
 
-        public static void Mainx()
+        public static void Main()
         {
             var codeReader = new StringReader(_code2);
             var rawTokens = new LuaRawTokenizer();
@@ -129,13 +130,13 @@ end
             var thread = new Thread();
             var stack = thread.Stack.Allocate(1);
 
-            var clock = Stopwatch.StartNew();
-            for (int i = 0; i < 1000000; ++i)
+            //var clock = Stopwatch.StartNew();
+            //for (int i = 0; i < 1000000; ++i)
             {
                 thread.ClearSigBlock();
                 LuaInterpreter.Execute(thread, closure, ref stack);
             }
-            Console.WriteLine(clock.ElapsedMilliseconds);
+            //Console.WriteLine(clock.ElapsedMilliseconds);
         }
 
         public static void Main_MoonSharp()

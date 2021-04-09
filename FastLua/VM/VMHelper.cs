@@ -8,7 +8,7 @@ namespace FastLua.VM
 {
     internal static class VMHelper
     {
-        public static int CompareValue(TypedValue a, TypedValue b)
+        public static int? CompareValue(TypedValue a, TypedValue b)
         {
             var ta = a.Type;
             var tb = b.Type;
@@ -19,30 +19,14 @@ namespace FastLua.VM
                 case VMSpecializationType.Int:
                     return Math.Sign(a.IntVal - b.IntVal);
                 case VMSpecializationType.Double:
+                    if (double.IsNaN(a.DoubleVal) || double.IsNaN(b.DoubleVal))
+                    {
+                        //Math.Sign will throw on NaN values.
+                        return null;
+                    }
                     return Math.Sign(a.DoubleVal - b.DoubleVal);
                 case VMSpecializationType.String:
                     return Comparer<string>.Default.Compare(a.StringVal, b.StringVal);
-                default:
-                    break;
-                }
-            }
-            throw new NotImplementedException();
-        }
-
-        public static bool CompareValueNE(TypedValue a, TypedValue b)
-        {
-            var ta = a.Type;
-            var tb = b.Type;
-            if (ta == tb)
-            {
-                switch (ta)
-                {
-                case VMSpecializationType.Int:
-                    return a.IntVal != b.IntVal;
-                case VMSpecializationType.Double:
-                    return a.DoubleVal != b.DoubleVal;
-                case VMSpecializationType.String:
-                    return Comparer<string>.Default.Compare(a.StringVal, b.StringVal) != 0;
                 default:
                     break;
                 }

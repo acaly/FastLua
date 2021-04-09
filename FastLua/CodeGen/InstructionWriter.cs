@@ -142,7 +142,7 @@ namespace FastLua.CodeGen
         public static void FixUUSJump(InstructionWriter writer, int instLocation, int labelLocation)
         {
             var (op, a, b, _) = writer.ReadUUS(instLocation);
-            var offset = labelLocation - instLocation;
+            var offset = labelLocation - (instLocation + 1);
             if (offset > 255 || offset < -256)
             {
                 throw new NotImplementedException();
@@ -153,7 +153,7 @@ namespace FastLua.CodeGen
         public static void FixUSxJump(InstructionWriter writer, int instLocation, int labelLocation)
         {
             var (op, a, _) = writer.ReadUSx(instLocation);
-            var offset = labelLocation - instLocation;
+            var offset = labelLocation - (instLocation + 1);
             if (offset < short.MinValue || offset > short.MaxValue)
             {
                 //Maybe this should be a different exception.
