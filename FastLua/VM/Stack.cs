@@ -106,8 +106,6 @@ namespace FastLua.VM
     //This struct stores other per-frame data (in addition to stack).
     internal struct StackMetaData
     {
-        public Proto Func;
-
         //Storage of the function vararg list (in VM's state.VarargStack).
 
         public int VarargStart;

@@ -50,15 +50,15 @@ namespace FastLua.VM
 
             stack.MetaData = new StackMetaData
             {
-                Func = proto,
                 VarargStart = varargStart,
                 VarargType = VMSpecializationType.Polymorphic,
                 VarargLength = varargLength,
+                OnSameSegment = stack.MetaData.OnSameSegment,
             };
             thread.ClearSigBlock();
             thread.SigOffset = proto.SigRegionOffset;
 
-            var inst = stack.MetaData.Func.Instructions;
+            var inst = proto.Instructions;
             var pc = startPc;
             int lastWriteO = 0, lastWriteV = 0;
             while (true)
@@ -284,7 +284,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = stack.MetaData.Func.Constants[b];
+                    stack.ValueFrame[a] = proto.Constants[b];
                     lastWriteO = lastWriteV = a;
                     break;
                 }
@@ -292,7 +292,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a].Number = stack.MetaData.Func.Constants[b].Number;
+                    stack.ValueFrame[a].Number = proto.Constants[b].Number;
                     lastWriteO = lastWriteV = a;
                     break;
                 }
@@ -326,7 +326,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
 
-                    var (closureProto, upvalLists) = stack.MetaData.Func.ChildFunctions[b];
+                    var (closureProto, upvalLists) = proto.ChildFunctions[b];
                     var nclosure = new LClosure
                     {
                         Proto = closureProto,
@@ -375,12 +375,10 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
 
-                    var thisFunc = stack.MetaData.Func;
-
                     //Adjust current sig block at the left side.
                     //This allows to merge other arguments that have already been pushed before.
                     //If current sig is empty, set the starting point based on lastWrite.
-                    ref var argSig = ref thisFunc.SigDesc[b];
+                    ref var argSig = ref proto.SigDesc[b];
                     thread.ResizeSigBlockLeft(ref argSig, lastWriteO + 1 - argSig.SigFLength);
 
                     var newFuncP = stack.ValueFrame[a].Object;
@@ -389,7 +387,7 @@ namespace FastLua.VM
                         InterpreterLoop(0, thread, lc, ref stack);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref stack.MetaData.Func.SigDesc[c], null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.SigDesc[c], null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;
@@ -419,10 +417,10 @@ namespace FastLua.VM
                     }
 
                     //Overwrite sig as a vararg.
-                    thread.SetSigBlockVararg(ref stack.MetaData.Func.VarargSig, b, stack.MetaData.VarargLength);
+                    thread.SetSigBlockVararg(ref proto.VarargSig, b, stack.MetaData.VarargLength);
                     //Then adjust to requested (this is needed in assignment statement).
                     var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref stack,
-                        ref stack.MetaData.Func.SigDesc[a], null, out _);
+                        ref proto.SigDesc[a], null, out _);
                     Debug.Assert(adjustmentSuccess);
 
                     lastWriteO = lastWriteV = b + stack.MetaData.VarargLength - 1;
@@ -504,7 +502,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
 
-                    thread.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b);
+                    thread.SetSigBlock(ref proto.SigDesc[a], b);
                     break;
                 }
                 case Opcodes.RET0:
@@ -519,7 +517,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
 
-                    thread.SetSigBlock(ref stack.MetaData.Func.SigDesc[a], b);
+                    thread.SetSigBlock(ref proto.SigDesc[a], b);
 
                     //Then return.
                     Span<TypedValue> retSpan;
