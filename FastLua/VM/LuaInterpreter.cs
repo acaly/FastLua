@@ -368,11 +368,6 @@ namespace FastLua.VM
                     t.Set(stack.ValueFrame[c], stack.ValueFrame[a]);
                     break;
                 }
-                case Opcodes.JMP:
-                {
-                    pc += (int)(short)(ushort)(ii & 0xFFFF);
-                    break;
-                }
                 case Opcodes.CALL:
                 case Opcodes.CALLC:
                 {
@@ -443,6 +438,66 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     stack.ValueFrame[a] = thread.VarargStack[stack.MetaData.VarargStart];
                     break;
+                }
+                case Opcodes.JMP:
+                {
+                    pc += (short)(ushort)(ii & 0xFFFF);
+                    break;
+                }
+                case Opcodes.FORI:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    ForceConvDouble(ref stack.ValueFrame[a]);
+                    ForceConvDouble(ref stack.ValueFrame[a + 1]);
+                    ForceConvDouble(ref stack.ValueFrame[a + 2]);
+                    //Treat the values as double.
+                    ref var n1 = ref stack.ValueFrame[a].Number;
+                    ref var n2 = ref stack.ValueFrame[a + 1].Number;
+                    ref var n3 = ref stack.ValueFrame[a + 2].Number;
+                    if (n3 > 0)
+                    {
+                        if (!(n1 <= n2))
+                        {
+                            pc += (short)(ushort)(ii & 0xFFFF);
+                        }
+                    }
+                    else
+                    {
+                        if (!(n1 >= n2))
+                        {
+                            pc += (short)(ushort)(ii & 0xFFFF);
+                        }
+                    }
+                    break;
+                }
+                case Opcodes.FORL:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    //Treat the values as double.
+                    ref var n1 = ref stack.ValueFrame[a].Number;
+                    ref var n2 = ref stack.ValueFrame[a + 1].Number;
+                    ref var n3 = ref stack.ValueFrame[a + 2].Number;
+                    n1 += n3;
+                    if (n3 > 0)
+                    {
+                        if (n1 <= n2)
+                        {
+                            pc += (short)(ushort)(ii & 0xFFFF);
+                        }
+                    }
+                    else
+                    {
+                        if (n1 >= n2)
+                        {
+                            pc += (short)(ushort)(ii & 0xFFFF);
+                        }
+                    }
+                    break;
+                }
+                case Opcodes.FORG:
+                {
+                    throw new NotImplementedException();
+                    //break;
                 }
                 case Opcodes.SIG:
                 {

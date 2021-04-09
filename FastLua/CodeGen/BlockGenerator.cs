@@ -60,6 +60,12 @@ namespace FastLua.CodeGen
 
         public override void Emit(InstructionWriter writer)
         {
+            EmitUpvalLists(writer);
+            EmitStatements(writer);
+        }
+
+        public void EmitUpvalLists(InstructionWriter writer)
+        {
             foreach (var (stack, count) in _upvalInit)
             {
                 if (stack.Offset > 255 || count > 255)
@@ -68,6 +74,10 @@ namespace FastLua.CodeGen
                 }
                 writer.WriteUUU(Opcodes.UNEW, stack.Offset, count, 0);
             }
+        }
+
+        public void EmitStatements(InstructionWriter writer)
+        {
             foreach (var g in _generators)
             {
                 g.Emit(writer);

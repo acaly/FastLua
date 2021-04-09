@@ -57,7 +57,7 @@ namespace FastLua.CodeGen
         public int InFragmentOffset;
         public int Type;
 
-        public int Offset => Owner.GetTypeOffset(Type) + InFragmentOffset;
+        public readonly int Offset => Owner.GetTypeOffset(Type) + InFragmentOffset;
     }
 
     //Allocate local variables. Try to compress the size by grouping slots of

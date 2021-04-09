@@ -64,12 +64,18 @@ namespace FastLua.VM
 
         //Call.
 
-        JMP,
         CALL,
         CALLC,
         VARG,
         VARGC,
         VARG1,
+
+        //Control flow.
+
+        JMP,
+        FORI,
+        FORL,
+        FORG,
 
         //Signature block.
 

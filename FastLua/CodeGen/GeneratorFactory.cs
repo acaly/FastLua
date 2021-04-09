@@ -111,7 +111,7 @@ namespace FastLua.CodeGen
                     local.Variables.Select(v => Function.Locals[v]).ToList(),
                     local.ExpressionList);
             case NumericForBlockSyntaxNode numericFor:
-                throw new NotImplementedException();
+                return new NumericForStatementGenerator(this, parentBlock, numericFor);
             case RepeatBlockSyntaxNode repeat:
                 return new RepeatStatementGenerator(this, parentBlock, repeat);
             case ReturnStatementSyntaxNode @return:

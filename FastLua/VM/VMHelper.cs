@@ -132,5 +132,26 @@ namespace FastLua.VM
         {
             throw new NotImplementedException();
         }
+
+        //Convert unspecialized type to double.
+        public static void ForceConvDouble(ref TypedValue val)
+        {
+            switch (val.Type)
+            {
+            case VMSpecializationType.Double:
+                return;
+            case VMSpecializationType.Int:
+                val = TypedValue.MakeDouble(val.IntVal);
+                return;
+            case VMSpecializationType.String:
+                if (double.TryParse(val.StringVal, out var parsedVal))
+                {
+                    val = TypedValue.MakeDouble(parsedVal);
+                    return;
+                }
+                break;
+            }
+            throw new Exception();
+        }
     }
 }

@@ -34,12 +34,11 @@ end
         //private static readonly string _code2 = 
         //    @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
         private static readonly string _code2 = @"
-local x, y = 0, 0
-repeat
-    x = x + 1
-    y = 2 + y
-until x >= 100
-return y
+local x = 0
+for i = 1, 5 do
+    x = x + i
+end
+return x
 ";
 
         private static readonly string _code3 = @"

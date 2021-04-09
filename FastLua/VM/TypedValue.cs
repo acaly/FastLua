@@ -16,7 +16,7 @@ namespace FastLua.VM
         public double Number;
         public object Object;
 
-        public VMSpecializationType Type
+        public readonly VMSpecializationType Type
         {
             get
             {
@@ -29,17 +29,17 @@ namespace FastLua.VM
             }
         }
 
-        public int IntVal
+        public readonly int IntVal
         {
             get => (int)(uint)(ulong)(BitConverter.DoubleToInt64Bits(Number) & 0xFFFFFFFF);
         }
 
-        public double DoubleVal
+        public readonly double DoubleVal
         {
             get => Number;
         }
 
-        public string StringVal
+        public readonly string StringVal
         {
             get => (string)Object;
         }
