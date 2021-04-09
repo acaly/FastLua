@@ -31,7 +31,8 @@ end
 ", 1));
 
         //private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
-        private static readonly string _code2 = @"local x = 3 if x == 2 then x = 3 elseif x == 1 then x = 4 else x = 5 end return x";
+        private static readonly string _code2 = 
+            @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
 
         private static readonly string _code3 = @"
 return function()

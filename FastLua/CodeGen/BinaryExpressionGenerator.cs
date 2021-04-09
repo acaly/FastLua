@@ -42,6 +42,20 @@ namespace FastLua.CodeGen
                 throw new NotImplementedException();
             }
 
+            //Determine whether we can share the dest slot with one of the operands.
+            //This saves a stack slot.
+            //  ? = (expr) + a
+            //will be generated as
+            //  dest = (expr)
+            //  dest = dest + a
+
+            //Note that at this point we have no idea what variable (or temp variable)
+            //will be assigned to this binary expr, so for the code
+            //  a = (expr) + a
+            //we will get an invalid code if we use the above pattern:
+            //  a = (expr)
+            //  a = a + a --> Wrong, the value that was in the second a has been lost!
+            //This special case is handled during emit stage.
             var leftOnStack = left.TryGetFromStack(out _);
             var rightOnStack = right.TryGetFromStack(out _);
             if (leftType == _type && !leftOnStack)
@@ -109,6 +123,28 @@ namespace FastLua.CodeGen
 
         public override void EmitGet(InstructionWriter writer, AllocatedLocal dest)
         {
+            //The two special cases.
+            if (_mode == CalcMode.LeftToDest)
+            {
+                if (_right.TryGetFromStack(out var rightStack) && rightStack.Offset == dest.Offset)
+                {
+                    _left.EmitPrep(writer);
+                    _left.EmitGet(writer, _rightTemp.Value);
+                    EmitInstruction(writer, dest, _rightTemp.Value, rightStack);
+                    return;
+                }
+            }
+            else if (_mode == CalcMode.RightToDest)
+            {
+                if (_left.TryGetFromStack(out var leftStack) && leftStack.Offset == dest.Offset)
+                {
+                    _right.EmitPrep(writer);
+                    _right.EmitGet(writer, _leftTemp.Value);
+                    EmitInstruction(writer, dest, leftStack, _leftTemp.Value);
+                    return;
+                }
+            }
+
             switch (_mode)
             {
             case CalcMode.LeftToDest:
