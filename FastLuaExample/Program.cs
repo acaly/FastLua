@@ -31,8 +31,16 @@ end
 ", 1));
 
         //private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
-        private static readonly string _code2 = 
-            @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
+        //private static readonly string _code2 = 
+        //    @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
+        private static readonly string _code2 = @"
+local x, y = 0, 0
+repeat
+    x = x + 1
+    y = 2 + y
+until x >= 100
+return y
+";
 
         private static readonly string _code3 = @"
 return function()

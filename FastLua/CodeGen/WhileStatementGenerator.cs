@@ -14,12 +14,11 @@ namespace FastLua.CodeGen
         private readonly StatementGenerator _block;
         private readonly LabelStatementSyntaxNode _exitLabel;
 
-        public WhileStatementGenerator(GeneratorFactory factory, BlockGenerator block, WhileBlockSyntaxNode stat,
-            StatementGenerator whileBlock)
+        public WhileStatementGenerator(GeneratorFactory factory, BlockGenerator block, WhileBlockSyntaxNode stat)
         {
             _exitLabel = new LabelStatementSyntaxNode();
             _cond = new ConditionGenerator(factory, block, stat.Condition, _exitLabel, reverseCondition: false);
-            _block = whileBlock;
+            _block = new BlockGenerator(factory, block.Stack, stat);
         }
 
         public override void Emit(InstructionWriter writer)

@@ -111,8 +111,9 @@ namespace FastLua.CodeGen
                     local.Variables.Select(v => Function.Locals[v]).ToList(),
                     local.ExpressionList);
             case NumericForBlockSyntaxNode numericFor:
-            case RepeatBlockSyntaxNode repeat:
                 throw new NotImplementedException();
+            case RepeatBlockSyntaxNode repeat:
+                return new RepeatStatementGenerator(this, parentBlock, repeat);
             case ReturnStatementSyntaxNode @return:
                 if (@return.Values.Expressions.Count == 0)
                 {
@@ -123,10 +124,7 @@ namespace FastLua.CodeGen
                     return new MultiReturnStatementGenerator(this, parentBlock, @return);
                 }
             case WhileBlockSyntaxNode @while:
-                //While block does not have aux block, so it won't be able to get its BlockGenerator.
-                //We must create it for it here.
-                return new WhileStatementGenerator(this, parentBlock, @while, 
-                    new BlockGenerator(this, parentBlock.Stack, @while));
+                return new WhileStatementGenerator(this, parentBlock, @while);
             case BlockSyntaxNode block:
                 //Block as the last (should only match simple block and function definition).
                 return new BlockGenerator(this, parentBlock?.Stack ?? Function.LocalFragment, block);
