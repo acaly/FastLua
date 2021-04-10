@@ -9,8 +9,24 @@ namespace FastLua.CodeGen
 {
     internal class SignatureManager
     {
-        private int _nextIndex = 0;
         private readonly Dictionary<int, List<(StackSignature s, int i)>> _knownSignatures = new();
+        private int _nextId = 0;
+
+        public SignatureManager()
+        {
+            //Add well-known types.
+            _knownSignatures.Add(0, new()
+            {
+                (StackSignature.Null, (int)WellKnownStackSignature.Null),
+                (StackSignature.Empty, (int)WellKnownStackSignature.Empty),
+                (StackSignature.EmptyV, (int)WellKnownStackSignature.EmptyV),
+            });
+            _knownSignatures.Add(2, new()
+            {
+                (StackSignature.Polymorphic_2, (int)WellKnownStackSignature.Polymorphic_2),
+            });
+            _nextId = (int)WellKnownStackSignature.Next;
+        }
 
         public (StackSignature, int) Get(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
         {
@@ -23,27 +39,33 @@ namespace FastLua.CodeGen
         }
 
         private bool TryFind(List<VMSpecializationType> fixedList, VMSpecializationType? vararg,
-            out (StackSignature, int) result)
+            out (StackSignature s, int i) result)
         {
             if (!_knownSignatures.TryGetValue(fixedList.Count, out var list))
             {
                 list = new();
                 _knownSignatures.Add(fixedList.Count, list);
             }
-            foreach (var s in list)
+            for (int i = 0; i < list.Count; ++i)
             {
-                if (!(vararg == s.s.Vararg)) //Comparing nullable.
+                var (sig, id) = list[i];
+                if (vararg != sig.Vararg)
                 {
                     continue;
                 }
-                for (int i = 0; i < fixedList.Count; ++i)
+                for (int j = 0; j < fixedList.Count; ++j)
                 {
-                    if (fixedList[i] != s.s.ElementInfo[i].type)
+                    if (fixedList[j] != sig.ElementInfo[j].type)
                     {
                         continue;
                     }
                 }
-                result = s;
+                if (id == -1)
+                {
+                    id = _nextId++;
+                    list[i] = (sig, id);
+                }
+                result = (sig, id);
                 return true;
             }
             result = default;
@@ -63,8 +85,16 @@ namespace FastLua.CodeGen
             }
             var (nv, v) = StackSignature.CreateUnspecialized(fixedList.Count);
             var list = _knownSignatures[fixedList.Count];
-            var nvr = (nv, _nextIndex++); //We are adding both into the list, but actually only one is requested.
-            var vr = (v, _nextIndex++);
+            var nvr = (nv, i: -1);
+            var vr = (v, i: -1);
+            if (vararg.HasValue)
+            {
+                vr.i = _nextId++;
+            }
+            else
+            {
+                nvr.i = _nextId++;
+            }
             list.Add(nvr);
             list.Add(vr);
             return vararg.HasValue ? vr : nvr;
@@ -72,7 +102,18 @@ namespace FastLua.CodeGen
 
         public SignatureDesc[] ToArray()
         {
-            return _knownSignatures.SelectMany(l => l.Value).Select(s => s.s.GetDesc()).ToArray();
+            var ret = new SignatureDesc[_nextId];
+            foreach (var list in _knownSignatures.Values)
+            {
+                foreach (var (sig, index) in list)
+                {
+                    if (index != -1)
+                    {
+                        ret[index] = sig.GetDesc();
+                    }
+                }
+            }
+            return ret;
         }
     }
 }

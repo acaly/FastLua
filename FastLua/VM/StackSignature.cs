@@ -8,6 +8,16 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
+    internal enum WellKnownStackSignature
+    {
+        Null = 0,
+        Empty = 1,
+        EmptyV = 2,
+        Polymorphic_2 = 3,
+
+        Next = 4,
+    }
+
     internal class StackSignature
     {
         private static ulong _nextGlobalId = 1;
@@ -23,14 +33,19 @@ namespace FastLua.VM
         public static readonly StackSignature Null = new()
         {
             _vararg = null,
-            GlobalId = 0,
+            GlobalId = (ulong)WellKnownStackSignature.Null,
             ElementInfo = ImmutableArray<(VMSpecializationType, int)>.Empty,
             SlotInfo = ImmutableArray<(int, int)>.Empty,
             Vararg = null,
             IsUnspecialized = true,
         };
-        public static readonly StackSignature Empty = CreateUnspecialized(0).novararg;
+        public static readonly StackSignature Empty = CreateUnspecialized(0,
+            nvid: (ulong)WellKnownStackSignature.Empty,
+            vid: (ulong)WellKnownStackSignature.EmptyV).novararg;
         public static readonly StackSignature EmptyV = Empty._vararg;
+
+        public static readonly StackSignature Polymorphic_2 = CreateUnspecialized(2,
+            nvid: (ulong)WellKnownStackSignature.Polymorphic_2, vid: null).novararg;
 
         private StackSignature()
         {
@@ -84,9 +99,14 @@ namespace FastLua.VM
 
         public static (StackSignature novararg, StackSignature vararg) CreateUnspecialized(int count)
         {
+            return CreateUnspecialized(count, null, null);
+        }
+
+        private static (StackSignature novararg, StackSignature vararg) CreateUnspecialized(int count, ulong? nvid, ulong? vid)
+        {
             var a = new StackSignature()
             {
-                GlobalId = Interlocked.Increment(ref _nextGlobalId),
+                GlobalId = nvid ?? Interlocked.Increment(ref _nextGlobalId),
                 ElementInfo = Enumerable.Range(0, count)
                     .Select(i => (VMSpecializationType.Polymorphic, i)).ToImmutableArray(),
                 SlotInfo = Enumerable.Range(0, count)
@@ -96,7 +116,7 @@ namespace FastLua.VM
             };
             var b = new StackSignature()
             {
-                GlobalId = Interlocked.Increment(ref _nextGlobalId),
+                GlobalId = vid ?? Interlocked.Increment(ref _nextGlobalId),
                 ElementInfo = a.ElementInfo,
                 SlotInfo = a.SlotInfo,
                 Vararg = null,
