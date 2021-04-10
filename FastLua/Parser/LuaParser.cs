@@ -251,7 +251,6 @@ namespace FastLua.Parser
             {
                 Check(ref t, LuaTokenType.Name);
                 var v = _output.CurrentBlock.NewVariable(t.Content, assignment);
-                v.Declaration = new(assignment);
                 assignment.Variables.Add(v);
                 Next(ref t);
             } while (TestAndNext(ref t, (LuaTokenType)','));
@@ -275,8 +274,6 @@ namespace FastLua.Parser
             {
                 Expressions = { Body(ref t, hasSelf: false) },
             };
-            //Next(ref t);
-            v.Declaration = new(assignment);
             _output.CurrentBlock.Add(assignment);
         }
 
@@ -360,11 +357,15 @@ namespace FastLua.Parser
         private void ForList(ref Token t)
         {
             var forBlock = _output.CurrentBlock.OpenGenericForBlock();
+
+            forBlock.HiddenVariableF = _output.CurrentBlock.NewVariable(default, forBlock);
+            forBlock.HiddenVariableS = _output.CurrentBlock.NewVariable(default, forBlock);
+            forBlock.HiddenVariableV = _output.CurrentBlock.NewVariable(default, forBlock);
+
             do
             {
                 Check(ref t, LuaTokenType.Name);
                 var v = _output.CurrentBlock.NewVariable(t.Content, forBlock);
-                v.Declaration = new(forBlock);
                 forBlock.LoopVariables.Add(v);
                 Next(ref t);
             }
@@ -383,7 +384,6 @@ namespace FastLua.Parser
         {
             var forBlock = _output.CurrentBlock.OpenNumericForBlock();
             var v = _output.CurrentBlock.NewVariable(t.Content, forBlock); //This is a name, confirmed by ForStat.
-            v.Declaration = new(forBlock);
             forBlock.Variable = v;
             Next(ref t);
             Next(ref t); //Skip the '=', confirmed by ForStat.

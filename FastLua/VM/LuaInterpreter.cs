@@ -371,6 +371,8 @@ namespace FastLua.VM
                 case Opcodes.CALL:
                 case Opcodes.CALLC:
                 {
+                    //Similar logic is also used in FORG. Be consistent whenever CALL/CALLC is updated.
+
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
@@ -494,8 +496,44 @@ namespace FastLua.VM
                 }
                 case Opcodes.FORG:
                 {
-                    throw new NotImplementedException();
-                    //break;
+                    //Similar logic is also used in CALL/CALLC. Be consistent whenever this is updated.
+
+                    int a = (int)((ii >> 16) & 0xFF);
+                    int b = (int)((ii >> 8) & 0xFF);
+                    int c = (int)(ii & 0xFF);
+
+                    //FORG always call with Polymorphic_2 arguments.
+                    stack.ValueFrame[a + 3] = stack.ValueFrame[a + 1]; //s
+                    stack.ValueFrame[a + 4] = stack.ValueFrame[a + 2]; //var
+                    thread.SetSigBlock(ref proto.SigDesc[(int)WellKnownStackSignature.Polymorphic_2], a + 3);
+
+                    var newFuncP = stack.ValueFrame[a].Object;
+                    if (newFuncP is LClosure lc)
+                    {
+                        InterpreterLoop(0, thread, lc, ref stack);
+
+                        //Adjust return values (without moving additional to vararg list).
+                        if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.SigDesc[b], null, out _))
+                        {
+                            JumpToFallback(thread, ref stack);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        //native closure/native func
+                        throw new NotImplementedException();
+                    }
+                    thread.ClearSigBlock();
+
+                    //For-loop related logic.
+                    if (stack.ValueFrame[a + 3].Type == VMSpecializationType.Nil)
+                    {
+                        pc += (sbyte)(byte)(ii & 0xFF);
+                    }
+                    stack.ValueFrame[a + 2] = stack.ValueFrame[a + 3]; //var = var_1
+
+                    break;
                 }
                 case Opcodes.SIG:
                 {

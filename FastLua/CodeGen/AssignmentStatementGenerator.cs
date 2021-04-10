@@ -109,6 +109,7 @@ namespace FastLua.CodeGen
                 {
                     SpecializationType = new() { LuaType = SpecializationLuaType.Nil },
                 };
+                var nilValue = factory.CreateExpression(parent, nilExpr);
                 bool needNilValue = false;
                 for (int i = oneToOneCount; i < variables.Count; ++i)
                 {
@@ -118,6 +119,7 @@ namespace FastLua.CodeGen
                         VariableGenerator = v,
                         TempSlot = _nilSlot,
                         Type = VMSpecializationType.Nil,
+                        ExpressionGenerator = nilValue,
                     });
                     if (!v.TryGetFromStack(out _))
                     {
@@ -126,7 +128,7 @@ namespace FastLua.CodeGen
                 }
                 if (needNilValue)
                 {
-                    _nilValue = factory.CreateExpression(parent, nilExpr);
+                    _nilValue = nilValue;
                     _nilSlot = parent.TempAllocator.Allocate(nilExpr);
                 }
             }

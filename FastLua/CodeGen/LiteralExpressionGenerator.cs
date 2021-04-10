@@ -16,15 +16,16 @@ namespace FastLua.CodeGen
         public LiteralExpressionGenerator(FunctionGenerator func, LiteralExpressionSyntaxNode expr) : base(0)
         {
             var type = expr.SpecializationType.GetVMSpecializationType();
-            _constIndex = func.Constants.AddUnspecialized(type switch
+            var k = func.Constants;
+            _constIndex = type switch
             {
-                VMSpecializationType.Nil => TypedValue.Nil,
-                VMSpecializationType.Bool => expr.BoolValue ? TypedValue.True : TypedValue.False,
-                VMSpecializationType.Double => TypedValue.MakeDouble(expr.DoubleValue),
-                VMSpecializationType.Int => TypedValue.MakeInt(expr.Int32Value),
-                VMSpecializationType.String => TypedValue.MakeString(expr.StringValue),
+                VMSpecializationType.Nil => k.GetUnspecializedNil(),
+                VMSpecializationType.Bool => expr.BoolValue ? k.GetUnspecializedTrue() : k.GetUnspecializedFalse(),
+                VMSpecializationType.Double => k.AddUnspecialized(TypedValue.MakeDouble(expr.DoubleValue)),
+                VMSpecializationType.Int => k.AddUnspecialized(TypedValue.MakeInt(expr.Int32Value)),
+                VMSpecializationType.String => k.AddUnspecialized(TypedValue.MakeString(expr.StringValue)),
                 _ => throw new Exception(), //Internal exception.
-            });
+            };
 
             _type = type.Deoptimize();
         }

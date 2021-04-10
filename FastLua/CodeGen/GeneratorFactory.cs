@@ -97,7 +97,7 @@ namespace FastLua.CodeGen
                     assignment.Variables.Select(v => CreateVariable(parentBlock, v)).ToList(),
                     assignment.Values);
             case GenericForBlockSyntaxNode genericFor:
-                throw new NotImplementedException();
+                return new GenericForStatementGenerator(this, parentBlock, genericFor);
             case GotoStatementSyntaxNode @goto:
                 return new GotoStatementGenerator(@goto.Target.Target);
             case IfStatementSyntaxNode @if:

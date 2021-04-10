@@ -479,7 +479,10 @@ namespace FastLua.Parser
                     Kind = LocalVariableKind.Local,
                     Declaration = new(decl),
                 };
-                _declaredLocals.Add(name.ToString(), new(def));
+                if (name.Length > 0)
+                {
+                    _declaredLocals.Add(name.ToString(), new(def));
+                }
                 _block.LocalVariables.Add(new(def));
                 return def;
             }
