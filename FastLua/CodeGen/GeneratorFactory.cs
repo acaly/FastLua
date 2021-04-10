@@ -27,8 +27,9 @@ namespace FastLua.CodeGen
             case IndexVariableSyntaxNode indexVariable:
                 return new IndexVariableGenerator(this, parentBlock, indexVariable);
             default:
-                throw new Exception();
+                break;
             }
+            throw new Exception();
         }
 
         public ExpressionGenerator CreateExpression(BlockGenerator parentBlock, ExpressionSyntaxNode expr)
@@ -59,8 +60,9 @@ namespace FastLua.CodeGen
                 case BinaryOperator.Raw.Or:
                     return new AndOrExpressionGenerator(this, parentBlock, binary);
                 default:
-                    throw new Exception();
+                    break;
                 }
+                break;
             }
             case FunctionExpressionSyntaxNode function:
                 return new FunctionExpressionGenerator(this, function);
@@ -78,14 +80,15 @@ namespace FastLua.CodeGen
                 return ret;
             }
             case TableExpressionSyntaxNode table:
-                throw new NotImplementedException();
+                return new TableExpressionGenerator(this, parentBlock, table);
             case UnaryExpressionSyntaxNode unary:
                 return new UnaryExpressionGenerator(this, parentBlock, unary);
             case VarargExpressionSyntaxNode vararg:
                 return new VarargExpressionGenerator(Function.FunctionDefinition, vararg);
             default:
-                throw new Exception();
+                break;
             }
+            throw new Exception();
         }
 
         public StatementGenerator CreateStatement(BlockGenerator parentBlock, StatementSyntaxNode statement)
@@ -129,8 +132,9 @@ namespace FastLua.CodeGen
                 //Block as the last (should only match simple block and function definition).
                 return new BlockGenerator(this, parentBlock?.Stack ?? Function.LocalFragment, block);
             default:
-                throw new Exception();
+                break;
             }
+            throw new Exception();
         }
     }
 }

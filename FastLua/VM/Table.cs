@@ -17,5 +17,10 @@ namespace FastLua.VM
         {
             throw new NotImplementedException();
         }
+
+        public void SetSequence(ReadOnlySpan<TypedValue> stack, ref SignatureDesc sigDesc)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

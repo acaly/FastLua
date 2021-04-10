@@ -368,6 +368,18 @@ namespace FastLua.VM
                     t.Set(stack.ValueFrame[c], stack.ValueFrame[a]);
                     break;
                 }
+                case Opcodes.TINIT:
+                {
+                    int a = (int)((ii >> 16) & 0xFF);
+                    int b = (int)((ii >> 8) & 0xFF);
+                    int c = (int)(ii & 0xFF);
+                    var t = (Table)stack.ValueFrame[a].Object;
+                    ref var sig = ref proto.SigDesc[c];
+                    var span = stack.ValueFrame.Slice(b, sig.SigFLength + thread.SigVLength);
+                    t.SetSequence(span, ref sig);
+                    thread.ClearSigBlock();
+                    break;
+                }
                 case Opcodes.CALL:
                 case Opcodes.CALLC:
                 {
@@ -436,7 +448,14 @@ namespace FastLua.VM
                 case Opcodes.VARG1:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
-                    stack.ValueFrame[a] = thread.VarargStack[stack.MetaData.VarargStart];
+                    if (stack.MetaData.VarargLength == 0)
+                    {
+                        stack.ValueFrame[a] = TypedValue.Nil;
+                    }
+                    else
+                    {
+                        stack.ValueFrame[a] = thread.VarargStack[stack.MetaData.VarargStart];
+                    }
                     break;
                 }
                 case Opcodes.JMP:

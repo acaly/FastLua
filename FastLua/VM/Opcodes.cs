@@ -61,6 +61,7 @@ namespace FastLua.VM
         TNEW,
         TGET,
         TSET,
+        TINIT,
 
         //Call.
 
