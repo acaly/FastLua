@@ -153,5 +153,29 @@ namespace FastLua.VM
             }
             throw new Exception();
         }
+
+        public static void SetTable(ref TypedValue table, ref TypedValue key, ref TypedValue value)
+        {
+            if (table.Type == VMSpecializationType.Table)
+            {
+                ((Table)table.Object).Set(key, value);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public static void GetTable(ref TypedValue table, ref TypedValue key, ref TypedValue value)
+        {
+            if (table.Type == VMSpecializationType.Table)
+            {
+                ((Table)table.Object).Get(key, out value);
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+        }
     }
 }

@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    internal struct TypedValue
+    internal struct TypedValue : IEquatable<TypedValue>
     {
         public const long NNMarkL = 0x7FF7A50000000000;
         public const long NNMaskL = 0x7FFFFF0000000000;
@@ -15,6 +16,32 @@ namespace FastLua.VM
 
         public double Number;
         public object Object;
+
+        public override bool Equals(object obj)
+        {
+            return obj is TypedValue value && Equals(value);
+        }
+
+        public bool Equals(TypedValue other)
+        {
+            return BitConverter.DoubleToInt64Bits(Number) == BitConverter.DoubleToInt64Bits(other.Number) &&
+                   EqualityComparer<object>.Default.Equals(Object, other.Object);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(Number, Object);
+        }
+
+        public static bool operator ==(TypedValue left, TypedValue right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(TypedValue left, TypedValue right)
+        {
+            return !(left == right);
+        }
 
         public readonly VMSpecializationType Type
         {
@@ -81,5 +108,23 @@ namespace FastLua.VM
             Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.Table << 32),
             Object = val,
         };
+        public static TypedValue MakeTyped(TypedValue specializedStack, VMSpecializationType type)
+        {
+            if (type == VMSpecializationType.Double)
+            {
+                return MakeDouble(specializedStack.Number);
+            }
+            else if (!type.GetStorageType().obj)
+            {
+                specializedStack.Object = null;
+                Unsafe.As<double, long>(ref specializedStack.Number) |= NNMarkL | (long)type << 32;
+                return specializedStack;
+            }
+            else
+            {
+                Unsafe.As<double, long>(ref specializedStack.Number) |= NNMarkL | (long)type << 32;
+                return specializedStack;
+            }
+        }
     }
 }

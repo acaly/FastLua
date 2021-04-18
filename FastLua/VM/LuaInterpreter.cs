@@ -352,9 +352,14 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    //TODO should support metatable
-                    var t = (Table)stack.ValueFrame[b].Object;
-                    stack.ValueFrame[a] = t.Get(stack.ValueFrame[c]);
+                    if (stack.ValueFrame[b].Object is Table t)
+                    {
+                        t.Get(stack.ValueFrame[c], out stack.ValueFrame[a]);
+                    }
+                    else
+                    {
+                        GetTable(ref stack.ValueFrame[b], ref stack.ValueFrame[c], ref stack.ValueFrame[a]);
+                    }
                     lastWriteO = lastWriteV = a;
                     break;
                 }
@@ -363,9 +368,14 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    //TODO should support metatable
-                    var t = (Table)stack.ValueFrame[b].Object;
-                    t.Set(stack.ValueFrame[c], stack.ValueFrame[a]);
+                    if (stack.ValueFrame[b].Object is Table t)
+                    {
+                        t.Set(stack.ValueFrame[c], stack.ValueFrame[a]);
+                    }
+                    else
+                    {
+                        SetTable(ref stack.ValueFrame[b], ref stack.ValueFrame[c], ref stack.ValueFrame[a]);
+                    }
                     break;
                 }
                 case Opcodes.TINIT:

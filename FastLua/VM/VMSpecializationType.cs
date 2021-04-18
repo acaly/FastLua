@@ -14,13 +14,12 @@ namespace FastLua.VM
         Bool = 0x12,
         Int = 0x13,
         Double = 0x14,
-        Function = 0x15,
 
         String = 0x21,
         Table = 0x22,
         LClosure = 0x23,
         NClosure = 0x24,
-        NFunction = 0x25,
+        //NFunction = ??,
         UserData = 0x26,
 
         //No more type for uplist. The region is not typed.
@@ -47,8 +46,8 @@ namespace FastLua.VM
         {
             return (specType & VMSpecializationType.StorageBits) switch
             {
-                VMSpecializationType.StorageRef => (true, false),
-                VMSpecializationType.StorageValue => (false, true),
+                VMSpecializationType.StorageRef => (false, true),
+                VMSpecializationType.StorageValue => (true, false),
                 _ => (true, true),
             };
         }

@@ -31,14 +31,8 @@ end
 ", 1));
 
         //private static readonly string _code2 = @"local function f(x) return x * x - 1 end return f(f(2)) + 2";
-        //private static readonly string _code2 = 
-        //    @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
-        private static readonly string _code2 = @"
-local table = nil
-for a, b in next, table do
-    local x = a + b
-end
-";
+        private static readonly string _code2 = 
+            @"local x, y = 3, 0 while x > 0 do y = y + x x = x - 1 end return y";
 
         private static readonly string _code3 = @"
 return function()
@@ -95,6 +89,19 @@ end
 
         public static void Main()
         {
+            var table = new Table();
+            table.Set(TypedValue.MakeDouble(2), TypedValue.MakeDouble(1));
+            table.Set(TypedValue.MakeDouble(1), TypedValue.MakeDouble(2));
+            table.Set(TypedValue.MakeInt(3), TypedValue.MakeDouble(3));
+
+            TypedValue result;
+            table.Get(TypedValue.MakeInt(1), out result);
+            table.Get(TypedValue.MakeInt(2), out result);
+            table.Get(TypedValue.MakeDouble(3), out result);
+        }
+
+        public static void Mainx()
+        {
             var codeReader = new StringReader(_code2);
             var rawTokens = new LuaRawTokenizer();
             var luaTokens = new LuaTokenizer();
@@ -138,7 +145,7 @@ end
             var stack = thread.Stack.Allocate(1);
 
             //var clock = Stopwatch.StartNew();
-            //for (int i = 0; i < 1000000; ++i)
+            //for (int i = 0; i < 6000000; ++i)
             {
                 thread.ClearSigBlock();
                 LuaInterpreter.Execute(thread, closure, ref stack);
