@@ -104,30 +104,9 @@ end
 
             var ast = builder.Finish();
 
-            var sigManager = new SignatureManager();
-            Proto CompileFunction(ulong id)
-            {
-                //TODO should add root function to FUnctions list.
-                if (id == ast.RootFunction.GlobalId)
-                {
-                    var funcGen = new FunctionGenerator(sigManager);
-                    return funcGen.Generate(ast.RootFunction, CompileFunction);
-                }
-                else
-                {
-                    var func = ast.Functions.Single(func => func.GlobalId == id);
-                    var funcGen = new FunctionGenerator(sigManager);
-                    return funcGen.Generate(func, CompileFunction);
-                }
-            }
+            var codeGen = new CodeGenerator();
+            var closure = codeGen.Compile(ast, null);
 
-            var proto = CompileFunction(ast.RootFunction.GlobalId);
-
-            var closure = new LClosure
-            {
-                Proto = proto,
-                UpvalLists = Array.Empty<TypedValue[]>(),
-            };
             var thread = new Thread();
             var stack = thread.Stack.Allocate(1);
 

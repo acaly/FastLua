@@ -7,15 +7,28 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    internal struct TypedValue : IEquatable<TypedValue>
+    public enum LuaValueType
     {
-        public const long NNMarkL = 0x7FF7A50000000000;
-        public const long NNMaskL = 0x7FFFFF0000000000;
-        public const long NNMark = 0x7FF7A500;
-        public const long NNMask = 0x7FFFFF00;
+        Unknown,
+        Nil,
+        Number,
+        String,
+        Table,
+        LClosure,
+        NClosure,
+        UserData,
+        Thread,
+    }
 
-        public double Number;
-        public object Object;
+    public struct TypedValue : IEquatable<TypedValue>
+    {
+        internal const long NNMarkL = 0x7FF7A50000000000;
+        internal const long NNMaskL = 0x7FFFFF0000000000;
+        internal const long NNMark = 0x7FF7A500;
+        internal const long NNMask = 0x7FFFFF00;
+
+        internal double Number;
+        internal object Object;
 
         public override bool Equals(object obj)
         {
@@ -43,7 +56,7 @@ namespace FastLua.VM
             return !(left == right);
         }
 
-        public readonly VMSpecializationType Type
+        internal readonly VMSpecializationType Type
         {
             get
             {
@@ -56,6 +69,28 @@ namespace FastLua.VM
             }
         }
 
+        public readonly LuaValueType ValueType
+        {
+            get => Type switch
+            {
+                VMSpecializationType.Nil => LuaValueType.Nil,
+                VMSpecializationType.Int => LuaValueType.Number,
+                VMSpecializationType.Double => LuaValueType.Number,
+                VMSpecializationType.String => LuaValueType.String,
+                VMSpecializationType.Table => LuaValueType.Table,
+                VMSpecializationType.LClosure => LuaValueType.LClosure,
+                VMSpecializationType.NClosure => LuaValueType.NClosure,
+                VMSpecializationType.UserData => LuaValueType.UserData,
+                VMSpecializationType.Thread => LuaValueType.Thread,
+                _ => LuaValueType.Unknown,
+            };
+        }
+
+        public readonly bool BoolVal
+        {
+            get => (BitConverter.DoubleToInt64Bits(Number) & 1) != 0;
+        }
+
         public readonly int IntVal
         {
             get => (int)(uint)(ulong)(BitConverter.DoubleToInt64Bits(Number) & 0xFFFFFFFF);
@@ -66,9 +101,24 @@ namespace FastLua.VM
             get => Number;
         }
 
+        public readonly double NumberVal
+        {
+            get => Type == VMSpecializationType.Double ? DoubleVal : IntVal;
+        }
+
         public readonly string StringVal
         {
             get => (string)Object;
+        }
+
+        public readonly Table TableVal
+        {
+            get => (Table)Object;
+        }
+
+        public readonly LClosure LClosureVal
+        {
+            get => (LClosure)Object;
         }
 
         public static readonly TypedValue Nil = new()
@@ -108,7 +158,7 @@ namespace FastLua.VM
             Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.Table << 32),
             Object = val,
         };
-        public static TypedValue MakeTyped(TypedValue specializedStack, VMSpecializationType type)
+        internal static TypedValue MakeTyped(TypedValue specializedStack, VMSpecializationType type)
         {
             if (type == VMSpecializationType.Double)
             {

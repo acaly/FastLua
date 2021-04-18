@@ -10,9 +10,17 @@ using static FastLua.VM.VMHelper;
 
 namespace FastLua.VM
 {
-    internal partial class LuaInterpreter
+    public partial class LuaInterpreter
     {
-        //Static info for interpreter that does not need any update when entering/exiting frames.
+        public static void Execute(Thread thread, LClosure closure, ref StackInfo stack, List<TypedValue> ret)
+        {
+            Execute(thread, closure, ref stack.StackFrame);
+
+            ret.Clear();
+            var desc = StackSignature.EmptyV.GetDesc();
+            var adjusted = thread.TryAdjustSigBlockRight(ref stack.StackFrame, ref desc, ret, out _);
+            Debug.Assert(adjusted);
+        }
 
         internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
         {
@@ -28,6 +36,7 @@ namespace FastLua.VM
             //Especially the sig check.
             var proto = closure.Proto;
             var stack = thread.Stack.Allocate(thread, ref lastFrame, proto.StackSize, onSameSeg);
+            var parentStackOffset = thread.SigOffset;
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
@@ -642,6 +651,7 @@ namespace FastLua.VM
             {
                 stack.ValueFrame.Clear();
             }
+            thread.SigOffset = parentStackOffset;
         }
 
         private static void JumpToFallback(Thread thread, ref StackFrame stack)

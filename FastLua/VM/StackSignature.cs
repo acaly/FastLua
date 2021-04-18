@@ -39,6 +39,7 @@ namespace FastLua.VM
             Vararg = null,
             IsUnspecialized = true,
         };
+
         public static readonly StackSignature Empty = CreateUnspecialized(0,
             nvid: (ulong)WellKnownStackSignature.Empty,
             vid: (ulong)WellKnownStackSignature.EmptyV).novararg;

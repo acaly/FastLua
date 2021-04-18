@@ -21,6 +21,7 @@ namespace FastLua.VM
         NClosure = 0x24,
         //NFunction = ??,
         UserData = 0x26,
+        Thread = 0x27,
 
         //No more type for uplist. The region is not typed.
         //UpList = 0x31, //Used internally by VM to store upval lists (TypedValue[]).

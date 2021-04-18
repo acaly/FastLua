@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLua", "FastLua\FastLua.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLuaExample", "FastLuaExample\FastLuaExample.csproj", "{C6892055-5857-4F48-83BC-B3F4B2724672}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLuaTest", "FastLuaTest\FastLuaTest.csproj", "{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6892055-5857-4F48-83BC-B3F4B2724672}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

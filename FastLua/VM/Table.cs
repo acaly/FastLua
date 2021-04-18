@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    internal class Table
+    public class Table
     {
         private struct Node
         {
@@ -345,7 +345,7 @@ namespace FastLua.VM
             GetRaw(key, out value);
         }
 
-        public void SetSequence(Span<TypedValue> values, ref SignatureDesc sig)
+        internal void SetSequence(Span<TypedValue> values, ref SignatureDesc sig)
         {
             for (int i = 0; i < sig.SigFLength; ++i)
             {

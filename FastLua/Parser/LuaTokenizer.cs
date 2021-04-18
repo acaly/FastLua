@@ -99,7 +99,7 @@ namespace FastLua.Parser
             _input = input;
 
             _buffer.Clear();
-            _type = default;
+            _type = (LuaTokenType)(-1);
             _commentLen = _tokenLen = 0;
             _totalPeekLength = 0;
             _nextChar = default;

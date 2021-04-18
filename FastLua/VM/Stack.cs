@@ -75,6 +75,28 @@ namespace FastLua.VM
         }
     }
 
+    public ref struct StackInfo
+    {
+        internal Thread Thread;
+        internal StackFrame StackFrame;
+
+        public void Write(int start, Span<TypedValue> values)
+        {
+            if (values.Length != 0)
+            {
+                //TODO write as polymorphic values
+                throw new NotImplementedException();
+            }
+
+            Thread.ClearSigBlock();
+            var empty = SignatureDesc.Empty;
+            Thread.SetSigBlock(ref empty, start);
+        }
+
+        //TODO read
+        //
+    }
+
     internal struct SignatureDesc
     {
         public ulong SigTypeId;

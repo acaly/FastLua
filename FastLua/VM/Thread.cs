@@ -7,29 +7,29 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    internal class Thread
+    public sealed class Thread
     {
-        public StackManager Stack = new();
-        public StringBuilder StringBuilder = new();
-        public List<TypedValue> VarargStack = new();
-        public int VarargTotalLength = 0;
-        
+        internal StackManager Stack = new();
+        internal StringBuilder StringBuilder = new();
+        internal List<TypedValue> VarargStack = new();
+        internal int VarargTotalLength = 0;
+
         //Signature region.
 
-        public SignatureDesc SigDesc;
+        internal SignatureDesc SigDesc;
 
-        public int SigOffset; //Start of sig block.
-        public int SigVLength; //Length of vararg part.
+        internal int SigOffset; //Start of sig block.
+        internal int SigVLength; //Length of vararg part.
 
-        public int SigTotalLength => SigDesc.SigFLength + SigVLength;
+        internal int SigTotalLength => SigDesc.SigFLength + SigVLength;
 
-        public void ClearSigBlock()
+        internal void ClearSigBlock()
         {
             SigVLength = 0;
             SigDesc = SignatureDesc.Null;
         }
 
-        public void SetSigBlock(ref SignatureDesc desc, int pos)
+        internal void SetSigBlock(ref SignatureDesc desc, int pos)
         {
             //Keep VLength.
             SigOffset = pos;
@@ -38,7 +38,7 @@ namespace FastLua.VM
 
         //Set the sig to contain only a vararg part.
         //This is always followed by an adjustment.
-        public void SetSigBlockVararg(ref SignatureDesc desc, int pos, int length)
+        internal void SetSigBlockVararg(ref SignatureDesc desc, int pos, int length)
         {
             Debug.Assert(desc.SigFLength == 0);
             SigOffset = pos;
@@ -48,7 +48,7 @@ namespace FastLua.VM
 
         //Adjust sig block. This operation handles sig block generated inside the same function
         //so it should never fail (or it's a program error), and we don't really need to check.
-        public void ResizeSigBlockLeft(ref SignatureDesc desc, int pos)
+        internal void ResizeSigBlockLeft(ref SignatureDesc desc, int pos)
         {
             //0 is the Null signature, which is different from Empty. Null can only be created
             //from ClearSigBlock (when starting a new function or using CALLC instruction).
@@ -71,7 +71,7 @@ namespace FastLua.VM
 
         //Adjust the sig block with given type without changing its starting position.
         //If varargStorage is not null, copy the vararg part to the separate list.
-        public bool TryAdjustSigBlockRight(ref StackFrame stack, ref SignatureDesc desc,
+        internal bool TryAdjustSigBlockRight(ref StackFrame stack, ref SignatureDesc desc,
             List<TypedValue> varargStorage, out int varargCount)
         {
             if (desc.SigTypeId == SigDesc.SigTypeId)
@@ -127,6 +127,15 @@ namespace FastLua.VM
             {
                 storage.Add(stack.ValueFrame[start + i]);
             }
+        }
+
+        public StackInfo AllocateCSharpStack(int size)
+        {
+            return new StackInfo
+            {
+                Thread = this,
+                StackFrame = Stack.Allocate(size),
+            };
         }
     }
 }

@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    internal class LClosure
+    public class LClosure
     {
-        public Proto Proto;
-        public TypedValue[][] UpvalLists;
+        internal Proto Proto;
+        internal TypedValue[][] UpvalLists;
     }
 }
