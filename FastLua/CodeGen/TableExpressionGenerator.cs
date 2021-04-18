@@ -128,7 +128,7 @@ namespace FastLua.CodeGen
                     {
                         throw new NotImplementedException();
                     }
-                    writer.WriteUUU(Opcodes.TSET, dest.Offset, ks.Offset, vs.Offset);
+                    writer.WriteUUU(Opcodes.TSET, vs.Offset, dest.Offset, ks.Offset);
                 }
             }
             if (_varargVal is not null)

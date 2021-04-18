@@ -102,9 +102,12 @@ namespace FastLua.VM
             {
                 stack.ValueFrame.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
             }
-            SigDesc = desc;
+
             //Update variant part length for WriteVararg to work properly.
             SigVLength -= desc.SigFLength - SigDesc.SigFLength;
+
+            SigDesc = desc;
+
             WriteVararg(ref stack, varargStorage, out varargCount);
             return true;
         }

@@ -16,17 +16,18 @@ namespace FastLua.VM
 
         internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
         {
-            InterpreterLoop(0, thread, closure, ref stack);
+            //TODO provide an option for onSameSeg.
+            InterpreterLoop(0, thread, closure, ref stack, onSameSeg: true);
         }
 
-        private static void InterpreterLoop(int startPc, Thread thread, LClosure closure, ref StackFrame lastFrame)
+        private static void InterpreterLoop(int startPc, Thread thread, LClosure closure, ref StackFrame lastFrame,
+            bool onSameSeg)
         {
             //This allocates the new frame's stack, which may overlap with the current (to pass args)
             //TODO seems a lot of work here in Allocate. Should try to simplify.
             //Especially the sig check.
             var proto = closure.Proto;
-            var stack = thread.Stack.Allocate(thread, ref lastFrame, proto.StackSize,
-                onSameSeg: thread.SigDesc.SigType.Vararg.HasValue);
+            var stack = thread.Stack.Allocate(thread, ref lastFrame, proto.StackSize, onSameSeg);
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
@@ -408,10 +409,12 @@ namespace FastLua.VM
                     var newFuncP = stack.ValueFrame[a].Object;
                     if (newFuncP is LClosure lc)
                     {
-                        InterpreterLoop(0, thread, lc, ref stack);
+                        ref var retSig = ref proto.SigDesc[c];
+                        var callOnSameSeg = argSig.HasV || retSig.HasV;
+                        InterpreterLoop(0, thread, lc, ref stack, callOnSameSeg);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.SigDesc[c], null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref stack, ref retSig, null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;
@@ -539,7 +542,8 @@ namespace FastLua.VM
                     var newFuncP = stack.ValueFrame[a].Object;
                     if (newFuncP is LClosure lc)
                     {
-                        InterpreterLoop(0, thread, lc, ref stack);
+                        //FORG: we know how many values we need, so we don't need the caller to be on same seg.
+                        InterpreterLoop(0, thread, lc, ref stack, onSameSeg: false);
 
                         //Adjust return values (without moving additional to vararg list).
                         if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.SigDesc[b], null, out _))
@@ -616,7 +620,11 @@ namespace FastLua.VM
                     }
                     for (int i = 0; i < l; ++i)
                     {
-                        retSpan[i] = stack.ValueFrame[thread.SigOffset + i];
+                        //We may copy from the range outside this current frame. Use unsafe.
+                        //The onSameSegment mechanism ensures this range is valid.
+
+                        //retSpan[i] = stack.ValueFrame[thread.SigOffset + i];
+                        retSpan[i] = Unsafe.Add(ref MemoryMarshal.GetReference(stack.ValueFrame), thread.SigOffset + i);
                     }
                     goto loopEnd;
                 }
