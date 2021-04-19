@@ -440,6 +440,7 @@ namespace FastLua.VM
                     if ((Opcodes)(ii >> 24) == Opcodes.CALLC)
                     {
                         thread.ClearSigBlock();
+                        lastWrite = 0;
                     }
                     break;
                 }

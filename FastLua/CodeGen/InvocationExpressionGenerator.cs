@@ -220,7 +220,7 @@ namespace FastLua.CodeGen
             //Similar to EmitGet single-ret mode, but write to the first ret slot, which eliminates
             //the unnecessary MOV instruction after the CALLC.
             Debug.Assert(!_isVarargRet);
-            EmitGetInternal(writer, _mergedSigFragment.Offset, _singleRetSigIndex, keepSig: false);
+            EmitGetInternal(writer, _mergedSigFragment.Offset, (int)WellKnownStackSignature.Empty, keepSig: false);
         }
 
         private void EmitGetInternal(InstructionWriter writer, int dest, int sig, bool keepSig)

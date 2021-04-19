@@ -101,10 +101,13 @@ namespace FastLua.VM
             if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
             {
                 stack.ValueFrame.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
+                SigVLength = 0;
             }
-
-            //Update variant part length for WriteVararg to work properly.
-            SigVLength -= desc.SigFLength - SigDesc.SigFLength;
+            else
+            {
+                //Update variant part length for WriteVararg to work properly.
+                SigVLength -= desc.SigFLength - SigDesc.SigFLength;
+            }
 
             SigDesc = desc;
 
