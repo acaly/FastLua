@@ -87,7 +87,7 @@ return function()
 end
 ";
 
-        public static void Main()
+        public static void Mainx()
         {
             var codeReader = new StringReader(_code2);
             var rawTokens = new LuaRawTokenizer();
@@ -132,11 +132,10 @@ end
             Console.WriteLine(clock.ElapsedMilliseconds);
         }
 
-        public static void Main_KopiLua()
+        public static void Main()
         {
             var lua = KopiLua.Lua.luaL_newstate();
             KopiLua.Lua.luaL_loadstring(lua, new(_code2));
-
             var clock = Stopwatch.StartNew();
             for (int i = 0; i < 1000000; ++i)
             {
