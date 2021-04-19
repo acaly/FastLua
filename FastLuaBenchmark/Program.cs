@@ -3,7 +3,6 @@ using BenchmarkDotNet.Running;
 using FastLua.CodeGen;
 using FastLua.Parser;
 using FastLua.VM;
-using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -91,7 +90,7 @@ namespace FastLuaBenchmark
                     "--iterationTime", "200",
                 };
             }
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new CustomConfig());
         }
     }
 }
