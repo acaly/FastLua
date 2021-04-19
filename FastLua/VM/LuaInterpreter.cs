@@ -50,6 +50,7 @@ namespace FastLua.VM
             }
 
             //Push closure's upvals.
+            //TODO directly get from closure
             Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffset - proto.UpvalRegionOffset);
             for (int i = 0; i < closure.UpvalLists.Length; ++i)
             {
@@ -70,7 +71,7 @@ namespace FastLua.VM
 
             var inst = proto.Instructions;
             var pc = startPc;
-            int lastWriteO = 0, lastWriteV = 0;
+            int lastWrite = 0;
             while (true)
             {
                 var ii = inst[pc++];
@@ -143,24 +144,24 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (stack.ToBoolU(b))
+                    if (stack.ValueFrame[b].ToBoolVal())
                     {
                         stack.ValueFrame[a] = stack.ValueFrame[b];
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.ISFC:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (!stack.ToBoolU(b))
+                    if (!stack.ValueFrame[b].ToBoolVal())
                     {
                         stack.ValueFrame[a] = stack.ValueFrame[b];
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.MOV:
@@ -168,34 +169,34 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     stack.ValueFrame[a] = stack.ValueFrame[b];
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.NOT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = stack.ToBoolU(b) ? TypedValue.False : TypedValue.True;
-                    lastWriteO = lastWriteV = a;
+                    stack.ValueFrame[a] = stack.ValueFrame[b].ToBoolVal() ? TypedValue.False : TypedValue.True;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.NEG:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    switch (stack.GetTypeU(b))
+                    switch (stack.ValueFrame[b].Type)
                     {
                     case VMSpecializationType.Int:
-                        stack.ValueFrame[a] = TypedValue.MakeInt(-stack.GetIntU(b));
+                        stack.ValueFrame[a] = TypedValue.MakeInt(-stack.ValueFrame[b].IntVal);
                         break;
                     case VMSpecializationType.Double:
-                        stack.ValueFrame[a] = TypedValue.MakeDouble(-stack.GetDoubleU(b));
+                        stack.ValueFrame[a] = TypedValue.MakeDouble(-stack.ValueFrame[b].DoubleVal);
                         break;
                     default:
                         stack.ValueFrame[a] = UnaryNeg(stack.ValueFrame[b]);
                         break;
                     }
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.LEN:
@@ -203,7 +204,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     stack.ValueFrame[a] = UnaryLen(stack.ValueFrame[b]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.ADD:
@@ -212,7 +213,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Add(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.ADD_D:
@@ -221,7 +222,7 @@ namespace FastLua.VM
                     var b = (byte)(ii >> 8);
                     var c = (byte)ii;
                     stack.ValueFrame[a].Number = stack.ValueFrame[b].Number + stack.ValueFrame[c].Number;
-                    //lastWriteO = lastWriteV = a; //+~5% overhead
+                    //lastWrite = a; //+<5% overhead
 
                     //5-10% faster.
                     //Unsafe.Add(ref MemoryMarshal.GetReference(stack.NumberFrame), a) =
@@ -235,7 +236,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Sub(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.MUL:
@@ -244,7 +245,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Mul(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.DIV:
@@ -253,7 +254,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Div(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.MOD:
@@ -262,7 +263,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Mod(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.POW:
@@ -271,7 +272,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = Pow(stack.ValueFrame[b], stack.ValueFrame[c]);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.CAT:
@@ -287,7 +288,7 @@ namespace FastLua.VM
                         WriteString(sb, stack.ValueFrame[i]);
                     }
                     stack.ValueFrame[a] = TypedValue.MakeString(sb.ToString());
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.K:
@@ -295,7 +296,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     stack.ValueFrame[a] = proto.Constants[b];
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.K_D:
@@ -303,7 +304,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     stack.ValueFrame[a].Number = proto.Constants[b].Number;
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.UGET:
@@ -312,7 +313,7 @@ namespace FastLua.VM
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     stack.ValueFrame[a] = stack.GetUpvalOU(b, c);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.USET:
@@ -347,14 +348,14 @@ namespace FastLua.VM
                         nclosure.UpvalLists[i] = (TypedValue[])stack.ValueFrame[upvalLists[i]].Object;
                     }
                     stack.ValueFrame[a] = TypedValue.MakeLClosure(nclosure);
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.TNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     stack.ValueFrame[a] = TypedValue.MakeTable(new Table());
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.TGET:
@@ -370,7 +371,7 @@ namespace FastLua.VM
                     {
                         GetTable(ref stack.ValueFrame[b], ref stack.ValueFrame[c], ref stack.ValueFrame[a]);
                     }
-                    lastWriteO = lastWriteV = a;
+                    lastWrite = a;
                     break;
                 }
                 case Opcodes.TSET:
@@ -413,7 +414,8 @@ namespace FastLua.VM
                     //This allows to merge other arguments that have already been pushed before.
                     //If current sig is empty, set the starting point based on lastWrite.
                     ref var argSig = ref proto.SigDesc[b];
-                    thread.ResizeSigBlockLeft(ref argSig, lastWriteO + 1 - argSig.SigFLength);
+                    var sigStart = Math.Max(lastWrite + 1 - argSig.SigFLength, proto.SigRegionOffset);
+                    thread.ResizeSigBlockLeft(ref argSig, sigStart);
 
                     var newFuncP = stack.ValueFrame[a].Object;
                     if (newFuncP is LClosure lc)
@@ -459,7 +461,7 @@ namespace FastLua.VM
                         ref proto.SigDesc[a], null, out _);
                     Debug.Assert(adjustmentSuccess);
 
-                    lastWriteO = lastWriteV = b + stack.MetaData.VarargLength - 1;
+                    lastWrite = b + stack.MetaData.VarargLength - 1;
 
                     if ((Opcodes)(ii >> 24) == Opcodes.VARGC)
                     {

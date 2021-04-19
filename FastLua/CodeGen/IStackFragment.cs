@@ -189,6 +189,8 @@ namespace FastLua.CodeGen
 
         public void Build(ref int offset)
         {
+            Offset = offset;
+
             int childOffset;
             int childOffsetEnd = offset;
             for (int i = 0; i < _children.Count; ++i)

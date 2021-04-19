@@ -26,44 +26,6 @@ namespace FastLua.VM
         public static readonly delegate*<ref nint, ref StackFrame> GetLast =
             (delegate*<ref nint, ref StackFrame>)(delegate*<ref nint, ref nint>)&GetLastImpl;
 
-        //Unspecialized type access (U).
-
-        public VMSpecializationType GetTypeU(int u)
-        {
-            var d = BitConverter.DoubleToInt64Bits(ValueFrame[u].Number);
-            if ((d & TypedValue.NNMaskL) == TypedValue.NNMarkL)
-            {
-                return (VMSpecializationType)((d >> 32) & 0xFF);
-            }
-            return VMSpecializationType.Double;
-        }
-
-        public int GetIntU(int u)
-        {
-            return (int)(uint)((ulong)BitConverter.DoubleToInt64Bits(ValueFrame[u].Number) & 0xFFFFFFFF);
-        }
-
-        public double GetDoubleU(int u)
-        {
-            return ValueFrame[u].Number;
-        }
-
-        public string GetStringU(int u)
-        {
-            return (string)ValueFrame[u].Object;
-        }
-
-        public bool ToBoolU(int u)
-        {
-            var d = BitConverter.DoubleToInt64Bits(ValueFrame[u].Number);
-            return (d >> 32) switch
-            {
-                (TypedValue.NNMark | (int)VMSpecializationType.Nil) => false,
-                (TypedValue.NNMark | (int)VMSpecializationType.Bool) => (d & 0x1) != 0,
-                _ => true,
-            };
-        }
-
         public TypedValue GetUpvalOU(int o, int index)
         {
             return ((TypedValue[])ValueFrame[o].Object)[index];

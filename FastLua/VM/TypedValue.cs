@@ -121,6 +121,17 @@ namespace FastLua.VM
             get => (LClosure)Object;
         }
 
+        public readonly bool ToBoolVal()
+        {
+            var d = BitConverter.DoubleToInt64Bits(Number);
+            return (d >> 32) switch
+            {
+                (NNMark | (int)VMSpecializationType.Nil) => false,
+                (NNMark | (int)VMSpecializationType.Bool) => (d & 0x1) != 0,
+                _ => true,
+            };
+        }
+
         public static readonly TypedValue Nil = new()
         {
             Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.Nil << 32),
