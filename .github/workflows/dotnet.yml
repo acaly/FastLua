@@ -23,5 +23,5 @@ jobs:
     - name: Test
       run: dotnet test build/FastLuaTest.dll --no-build --verbosity normal
     - name: Benchmark
-      run: dotnot build/FastLuaBenchmark.dll
+      run: dotnet build/FastLuaBenchmark.dll
       
