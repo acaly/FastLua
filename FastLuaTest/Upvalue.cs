@@ -15,7 +15,10 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
-            TestHelper.DoString("local a = 1 local function f() return a end return f()", args, results);
+            TestHelper.DoString(
+                "local a = 1 " +
+                "local function get() return a end " +
+                "return get()", args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(1.0, results[0].NumberVal);
         }

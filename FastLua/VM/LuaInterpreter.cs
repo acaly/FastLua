@@ -50,7 +50,6 @@ namespace FastLua.VM
             }
 
             //Push closure's upvals.
-            //TODO directly get from closure
             Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffset - proto.UpvalRegionOffset);
             for (int i = 0; i < closure.UpvalLists.Length; ++i)
             {
