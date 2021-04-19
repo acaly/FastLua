@@ -80,9 +80,18 @@ namespace FastLuaBenchmark
             return r;
         }
 
-        public static void Main()
+        public static void Main(string[] args)
         {
-            BenchmarkRunner.Run<Program>();
+            if (args.Length == 0)
+            {
+                args = new[]
+                {
+                    "--filter", "Program",
+                    "--maxIterationCount", "20",
+                    "--iterationTime", "200",
+                };
+            }
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
 }
