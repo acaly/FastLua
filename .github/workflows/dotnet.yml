@@ -18,10 +18,10 @@ jobs:
         dotnet-version: 5.0.x
     - name: Restore dependencies
       run: dotnet restore
-    - name: Build Debug
-      run: dotnet build_debug --no-restore -o build -c Debug
-    - name: Build Release
-      run: dotnet build_release --no-restore -o build -c Release
+    - name: Build debug
+      run: dotnet build --no-restore -o build_debug -c Debug
+    - name: Build release
+      run: dotnet build --no-restore -o build_release -c Release
     - name: Test
       run: dotnet test build_debug/FastLuaTest.dll --no-build --verbosity normal
     - name: Benchmark
