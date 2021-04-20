@@ -39,14 +39,14 @@ namespace FastLua.VM
 
             ret.Clear();
             var desc = StackSignature.EmptyV.GetDesc();
-            var adjusted = thread.TryAdjustSigBlockRight(ref stack, ref values, ref desc, ret, out _);
+            var adjusted = thread.TryAdjustSigBlockRight(ref values, ref desc, ret, out _);
             Debug.Assert(adjusted);
         }
 
         internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
         {
             //TODO provide an option for onSameSeg.
-            InterpreterLoop(0, thread, closure, ref stack, onSameSeg: true);
+            InterpreterLoop(thread, closure, ref stack, onSameSeg: true);
         }
 
         private static void JumpToFallback(Thread thread, ref StackFrame stack)
@@ -54,7 +54,7 @@ namespace FastLua.VM
             throw new NotImplementedException();
         }
 
-        private static void InterpreterLoop(int startPc, Thread thread, LClosure closure,
+        private static void InterpreterLoop(Thread thread, LClosure closure,
             ref StackFrame lastFrame, bool onSameSeg)
         {
             //TODO recover execution
@@ -74,7 +74,7 @@ namespace FastLua.VM
             //Also remove vararg into separate stack.
             stack.MetaData.VarargType = VMSpecializationType.Polymorphic;
             stack.MetaData.VarargStart = thread.VarargTotalLength;
-            if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref proto.ParameterSig, thread.VarargStack,
+            if (!thread.TryAdjustSigBlockRight(ref values, ref proto.ParameterSig, thread.VarargStack,
                 out stack.MetaData.VarargLength))
             {
                 //Cannot adjust argument list. Adjust the argument list to unspecialized form and call fallback.
@@ -96,7 +96,7 @@ namespace FastLua.VM
             thread.SigOffset = proto.SigRegionOffset;
 
             var inst = proto.Instructions;
-            var pc = startPc;
+            var pc = 0;
             int lastWrite = 0;
             while (true)
             {
@@ -450,10 +450,10 @@ namespace FastLua.VM
                     {
                         ref var retSig = ref proto.SigDesc[c];
                         var callOnSameSeg = argSig.HasV || retSig.HasV;
-                        InterpreterLoop(0, thread, lc, ref stack, callOnSameSeg);
+                        InterpreterLoop(thread, lc, ref stack, callOnSameSeg);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref retSig, null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref values, ref retSig, null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;
@@ -499,7 +499,7 @@ namespace FastLua.VM
                     //Overwrite sig as a vararg.
                     thread.SetSigBlockVararg(ref proto.VarargSig, b, stack.MetaData.VarargLength);
                     //Then adjust to requested (this is needed in assignment statement).
-                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref stack, ref values,
+                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref values,
                         ref proto.SigDesc[a], null, out _);
                     Debug.Assert(adjustmentSuccess);
 
@@ -598,10 +598,10 @@ namespace FastLua.VM
                     if (newFuncP is LClosure lc)
                     {
                         //FORG: we know how many values we need, so we don't need the caller to be on same seg.
-                        InterpreterLoop(0, thread, lc, ref stack, onSameSeg: false);
+                        InterpreterLoop(thread, lc, ref stack, onSameSeg: false);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref proto.SigDesc[b], null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[b], null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;

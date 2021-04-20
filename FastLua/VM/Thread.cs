@@ -76,7 +76,7 @@ namespace FastLua.VM
 
         //Adjust the sig block with given type without changing its starting position.
         //If varargStorage is not null, copy the vararg part to the separate list.
-        internal bool TryAdjustSigBlockRight(ref StackFrame stack, ref StackFrameValues values,
+        internal bool TryAdjustSigBlockRight(ref StackFrameValues values,
             ref SignatureDesc desc, List<TypedValue> varargStorage, out int varargCount)
         {
             if (desc.SigTypeId == SigDesc.SigTypeId)
