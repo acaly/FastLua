@@ -87,9 +87,20 @@ return function()
 end
 ";
 
+        private static readonly string _code4 = @"
+local count = 0
+local function f(level)
+	if level == 5 then return end
+	f(level + 1)
+	f(level + 1)
+	count = count + 1
+end
+f(0)
+return count";
+
         public static void Main()
         {
-            var codeReader = new StringReader(_code2);
+            var codeReader = new StringReader(_code4);
             var rawTokens = new LuaRawTokenizer();
             var luaTokens = new LuaTokenizer();
             rawTokens.Reset(codeReader);
@@ -108,10 +119,10 @@ end
             var closure = codeGen.Compile(ast, null);
 
             var thread = new Thread();
-            var stack = thread.Stack.AllocateFirst(1);
+            var stack = thread.AllocateFirstFrame(1);
 
             var clock = Stopwatch.StartNew();
-            for (int i = 0; i < 8000000; ++i)
+            for (int i = 0; i < 2000000; ++i)
             {
                 thread.ClearSigBlock();
                 LuaInterpreter.Execute(thread, closure, ref stack);
@@ -211,7 +222,7 @@ end
             };
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
-            var stack = thread.Stack.AllocateFirst(1);
+            var stack = thread.AllocateFirstFrame(1);
             for (int i = 0; i < 10000000; ++i)
             {
                 thread.ClearSigBlock();

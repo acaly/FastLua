@@ -40,7 +40,8 @@ namespace FastLuaBenchmark
             global::KopiLua.Lua.luaL_loadstring(_kopiLuaState, new(code));
         }
 
-        [Params("self_function", "numeric_for")]
+        //[Params("self_function", "numeric_for")]
+        [Params("recursive_call")]
         public string ScriptFile
         {
             set => PrepareScripts(value);
@@ -63,13 +64,13 @@ namespace FastLuaBenchmark
             return _fastLuaRetList[0].NumberVal;
         }
 
-        [Benchmark(Baseline = true)]
+        //[Benchmark(Baseline = true)]
         public double MoonSharp()
         {
             return _moonSharpClosure.Call().Number;
         }
 
-        [Benchmark]
+        //[Benchmark]
         public double KopiLua()
         {
             global::KopiLua.Lua.lua_pushvalue(_kopiLuaState, -1);
@@ -87,7 +88,7 @@ namespace FastLuaBenchmark
                 {
                     "--filter", "Program",
                     "--maxIterationCount", "20",
-                    "--iterationTime", "200",
+                    "--iterationTime", "1000",
                 };
             }
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new CustomConfig());

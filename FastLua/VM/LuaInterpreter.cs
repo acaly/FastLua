@@ -16,8 +16,8 @@ namespace FastLua.VM
         {
             //C#-Lua boundary: before.
 
-            ref var stack = ref thread.Stack.Get(stackInfo.StackFrame);
-            var values = thread.Stack.GetValues(ref stack);
+            ref var stack = ref thread.GetFrame(stackInfo.StackFrame);
+            var values = thread.GetFrameValues(ref stack);
 
             try
             {
@@ -39,23 +39,23 @@ namespace FastLua.VM
 
             ret.Clear();
             var desc = StackSignature.EmptyV.GetDesc();
-            var adjusted = thread.TryAdjustSigBlockRight(ref values, ref desc, ret, out _);
+            var adjusted = thread.TryAdjustSigBlockRight(ref values, ref desc);
             Debug.Assert(adjusted);
+
+            StackFrameVarargInfo varargInfo = default;
+            thread.WriteVararg(ref values, ret, ref varargInfo);
         }
 
         internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
         {
             //TODO provide an option for onSameSeg.
+
+            var parentStackOffset = thread.SigOffset;
             InterpreterLoop(thread, closure, ref stack, onSameSeg: true);
+            thread.SigOffset = parentStackOffset;
         }
 
-        private static void JumpToFallback(Thread thread, ref StackFrame stack)
-        {
-            throw new NotImplementedException();
-        }
-
-        private static void InterpreterLoop(Thread thread, LClosure closure,
-            ref StackFrame lastFrame, bool onSameSeg)
+        private static void InterpreterLoop(Thread thread, LClosure closure, ref StackFrame lastFrame, bool onSameSeg)
         {
             //TODO recover execution
             //TODO in recovery, onSameSeg should be set depending on whether lastFrame's Segment
@@ -64,24 +64,19 @@ namespace FastLua.VM
             var proto = closure.Proto;
 
             //Note that this updates onSameSeg (the value is used when returning values to caller).
-            ref var stack = ref thread.Stack.AllocateNext(thread, ref lastFrame, proto.StackSize, ref onSameSeg);
-            var values = thread.Stack.GetValues(ref stack);
-
-            //TODO eliminate this
-            var parentStackOffset = thread.SigOffset;
+            ref var stack = ref thread.AllocateNextFrame(ref lastFrame, proto.StackSize, onSameSeg);
+            var values = thread.GetFrameValues(ref stack);
+            onSameSeg = stack.Segment == lastFrame.Segment;
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
-            stack.MetaData.VarargType = VMSpecializationType.Polymorphic;
-            stack.MetaData.VarargStart = thread.VarargTotalLength;
-            if (!thread.TryAdjustSigBlockRight(ref values, ref proto.ParameterSig, thread.VarargStack,
-                out stack.MetaData.VarargLength))
+            if (!thread.TryAdjustSigBlockRight(ref values, ref proto.ParameterSig))
             {
                 //Cannot adjust argument list. Adjust the argument list to unspecialized form and call fallback.
                 thread.SigDesc.SigType.AdjustStackToUnspecialized();
-                JumpToFallback(thread, ref stack);
-                return;
+                throw new NotImplementedException();
             }
+            thread.WriteVararg(ref values, thread.VarargStack, ref stack.VarargInfo);
 
             //Push closure's upvals.
             Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffset - proto.UpvalRegionOffset);
@@ -93,11 +88,10 @@ namespace FastLua.VM
             }
 
             thread.ClearSigBlock();
-            thread.SigOffset = proto.SigRegionOffset;
 
             var inst = proto.Instructions;
             var pc = 0;
-            int lastWrite = 0;
+            var lastWrite = 0;
             while (true)
             {
                 var ii = inst[pc++];
@@ -443,7 +437,7 @@ namespace FastLua.VM
                     //If current sig is empty, set the starting point based on lastWrite.
                     ref var argSig = ref proto.SigDesc[b];
                     var sigStart = Math.Max(lastWrite + 1 - argSig.SigFLength, proto.SigRegionOffset);
-                    thread.ResizeSigBlockLeft(ref argSig, sigStart);
+                    sigStart = thread.ResizeSigBlockLeft(ref argSig, sigStart);
 
                     var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
@@ -451,13 +445,14 @@ namespace FastLua.VM
                         ref var retSig = ref proto.SigDesc[c];
                         var callOnSameSeg = argSig.HasV || retSig.HasV;
                         InterpreterLoop(thread, lc, ref stack, callOnSameSeg);
+                        thread.SigOffset = sigStart;
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref values, ref retSig, null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref values, ref retSig))
                         {
-                            JumpToFallback(thread, ref stack);
-                            break;
+                            throw new NotImplementedException();
                         }
+                        thread.DiscardVararg(ref values);
                     }
                     else
                     {
@@ -469,7 +464,7 @@ namespace FastLua.VM
                         //Lua-C# boundary, after.
 
                         //TODO check segment
-                        if (Unsafe.AreSame(ref values[0], ref thread.Stack.GetValues(ref stack).Span[0]))
+                        if (Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack).Span[0]))
                         {
                             pc += 1;
                             stack.PC = pc;
@@ -491,19 +486,19 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
 
-                    for (int i = 0; i < stack.MetaData.VarargLength; ++i)
+                    for (int i = 0; i < stack.VarargInfo.VarargLength; ++i)
                     {
-                        values[i + b] = thread.VarargStack[i + stack.MetaData.VarargStart];
+                        values[i + b] = thread.VarargStack[i + stack.VarargInfo.VarargStart];
                     }
 
                     //Overwrite sig as a vararg.
-                    thread.SetSigBlockVararg(ref proto.VarargSig, b, stack.MetaData.VarargLength);
+                    thread.SetSigBlockVararg(ref proto.VarargSig, b, stack.VarargInfo.VarargLength);
                     //Then adjust to requested (this is needed in assignment statement).
-                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref values,
-                        ref proto.SigDesc[a], null, out _);
+                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[a]);
+                    thread.DiscardVararg(ref values);
                     Debug.Assert(adjustmentSuccess);
 
-                    lastWrite = b + stack.MetaData.VarargLength - 1;
+                    lastWrite = b + stack.VarargInfo.VarargLength - 1;
 
                     if ((Opcodes)(ii >> 24) == Opcodes.VARGC)
                     {
@@ -514,13 +509,13 @@ namespace FastLua.VM
                 case Opcodes.VARG1:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
-                    if (stack.MetaData.VarargLength == 0)
+                    if (stack.VarargInfo.VarargLength == 0)
                     {
                         values[a] = TypedValue.Nil;
                     }
                     else
                     {
-                        values[a] = thread.VarargStack[stack.MetaData.VarargStart];
+                        values[a] = thread.VarargStack[stack.VarargInfo.VarargStart];
                     }
                     break;
                 }
@@ -594,18 +589,21 @@ namespace FastLua.VM
                     values[a + 4] = values[a + 2]; //var
                     thread.SetSigBlock(ref proto.SigDesc[(int)WellKnownStackSignature.Polymorphic_2], a + 3);
 
+                    var sigStart = thread.SigOffset;
+
                     var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
                     {
                         //FORG: we know how many values we need, so we don't need the caller to be on same seg.
                         InterpreterLoop(thread, lc, ref stack, onSameSeg: false);
+                        thread.SigOffset = sigStart;
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[b], null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[b]))
                         {
-                            JumpToFallback(thread, ref stack);
-                            break;
+                            throw new NotImplementedException();
                         }
+                        thread.DiscardVararg(ref values);
                     }
                     else
                     {
@@ -617,7 +615,7 @@ namespace FastLua.VM
                         //Lua-C# boundary, after.
 
                         //TODO check segment
-                        if (Unsafe.AreSame(ref values[0], ref thread.Stack.GetValues(ref stack).Span[0]))
+                        if (Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack).Span[0]))
                         {
                             pc += 1;
                             stack.PC = pc;
@@ -626,6 +624,7 @@ namespace FastLua.VM
                         }
                     }
                     thread.ClearSigBlock();
+                    //thread.SigOffset = sigStart; //TODO useless?
 
                     //For-loop related logic.
                     if (values[a + 3].Type == VMSpecializationType.Nil)
@@ -670,7 +669,7 @@ namespace FastLua.VM
                     else
                     {
                         //The last one is on a previous stack. Find the location using last frame's data.
-                        retSpan = thread.Stack.GetValues(ref lastFrame).Span[thread.SigOffset..];
+                        retSpan = thread.GetFrameValues(ref lastFrame).Span[thread.SigOffset..];
                         l = Math.Min(l, retSpan.Length);
                     }
                     for (int i = 0; i < l; ++i)
@@ -696,8 +695,7 @@ namespace FastLua.VM
             {
                 values.Span.Clear();
             }
-            thread.Stack.Deallocate(ref stack);
-            thread.SigOffset = parentStackOffset;
+            thread.DeallocateFrame(ref stack);
         }
     }
 }
