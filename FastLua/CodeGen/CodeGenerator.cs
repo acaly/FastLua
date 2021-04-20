@@ -33,10 +33,10 @@ namespace FastLua.CodeGen
 
             var proto = CompileFunction(ast.RootFunction.GlobalId);
             var upvalLists = Array.Empty<TypedValue[]>();
-            if (ast.RootFunction.UpValueLists.Count != 0)
+            if (ast.RootFunction.ImportedUpValueLists.Count != 0)
             {
-                Debug.Assert(ast.RootFunction.UpValueLists.Count == 1);
-                Debug.Assert(ast.RootFunction.UpValueLists[0].Variables.Count == 1);
+                Debug.Assert(ast.RootFunction.ImportedUpValueLists.Count == 1);
+                Debug.Assert(ast.RootFunction.ImportedUpValueLists[0].Variables.Count == 1);
                 upvalLists = new TypedValue[1][]
                 {
                     new TypedValue[] { TypedValue.MakeTable(env) },
