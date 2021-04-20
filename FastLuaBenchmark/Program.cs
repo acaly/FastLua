@@ -5,6 +5,7 @@ using FastLua.Parser;
 using FastLua.VM;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FastLuaBenchmark
 {
@@ -47,7 +48,6 @@ namespace FastLuaBenchmark
         }
 
         private readonly Thread _fastLuaThread = new();
-        private readonly List<TypedValue> _fastLuaRetList = new();
         private readonly StackInfo _fastLuaStackFrame;
         private LClosure _fastLuaClosure;
 
@@ -64,8 +64,10 @@ namespace FastLuaBenchmark
         public double FastLua()
         {
             _fastLuaStackFrame.Write(0, default);
-            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, _fastLuaRetList);
-            return _fastLuaRetList[0].NumberVal;
+            TypedValue ret = default;
+            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, 0, 0);
+            _fastLuaStackFrame.Read(0, MemoryMarshal.CreateSpan(ref ret, 1));
+            return ret.NumberVal;
         }
 
         [Benchmark(Baseline = true)]

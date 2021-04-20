@@ -139,6 +139,30 @@ namespace FastLua.VM
             }
         }
 
+        internal int WriteVararg(ref StackFrameValues values, Span<TypedValue> storage)
+        {
+            if (!SigDesc.SigType.Vararg.HasValue)
+            {
+                DiscardVararg(ref values);
+                return 0;
+            }
+            Debug.Assert(SigDesc.HasV);
+
+            var start = SigOffset + SigDesc.SigFLength;
+            var len = Math.Min(SigVLength, storage.Length);
+            for (int i = 0; i < len; ++i)
+            {
+                storage[i] = values[start + i];
+                values[start + i].Object = null;
+            }
+            for (int i = len; i < SigVLength; ++i)
+            {
+                values[start + i].Object = null;
+            }
+
+            return len;
+        }
+
         internal void DiscardVararg(ref StackFrameValues values)
         {
             if (SigVLength > 0)

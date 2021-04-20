@@ -28,20 +28,17 @@ namespace FastLua.VM
         internal Thread Thread;
         internal int StackFrame;
 
-        public void Write(int start, Span<TypedValue> values)
+        public void Write(int start, ReadOnlySpan<TypedValue> values)
         {
-            if (values.Length != 0)
-            {
-                //TODO write as polymorphic values
-                throw new NotImplementedException();
-            }
-
-            Thread.ClearSigBlock();
-            Thread.SetSigBlock(in SignatureDesc.Empty, start);
+            var frameValues = Thread.GetFrameValues(ref Thread.GetFrame(StackFrame));
+            values.CopyTo(frameValues.Span[start..]);
         }
 
-        //TODO read
-        //
+        public void Read(int start, Span<TypedValue> values)
+        {
+            var frameValues = Thread.GetFrameValues(ref Thread.GetFrame(StackFrame));
+            frameValues.Span[start..].CopyTo(values);
+        }
     }
 
     internal struct SignatureDesc
@@ -53,6 +50,7 @@ namespace FastLua.VM
 
         public static readonly SignatureDesc Null = StackSignature.Null.GetDesc();
         public static readonly SignatureDesc Empty = StackSignature.Empty.GetDesc();
+        public static readonly SignatureDesc EmptyV = StackSignature.EmptyV.GetDesc();
 
         public SignatureDesc WithVararg(VMSpecializationType type)
         {

@@ -4,6 +4,7 @@ using FastLua.VM;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace FastLuaExample
 {
@@ -38,12 +39,16 @@ return a";
 
             var thread = new Thread();
             var stack = thread.AllocateRootCSharpStack(1);
+            var ret = default(TypedValue);
+            var retSpan = MemoryMarshal.CreateSpan(ref ret, 1);
 
             var clock = Stopwatch.StartNew();
             for (int i = 0; i < 10000000; ++i)
             {
-                thread.ClearSigBlock();
-                LuaInterpreter.Execute(thread, closure, stack, null);
+                stack.Write(0, default);
+                LuaInterpreter.Execute(thread, closure, stack, 0, 0);
+                stack.Read(0, retSpan);
+                Debug.Assert(ret.NumberVal == 15);
             }
             Console.WriteLine(clock.ElapsedMilliseconds);
         }
