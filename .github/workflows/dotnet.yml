@@ -21,12 +21,12 @@ jobs:
     - name: Test
       run: |
         dotnet build --no-restore -c Debug
-        dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" /p:CollectCoverage=true /p:CoverletOutput="./result.xml" /p:CoverletOutputFormat=cobertura
+        dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage"
     - name: Upload test results
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./FastLuaTest/result.xml
+        directory: './FastLuaTest/TestResults/*'
         flags: unittests
         name: codecov
         fail_ci_if_error: true
