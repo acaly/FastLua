@@ -21,7 +21,7 @@ jobs:
     - name: Test
       run: |
         dotnet build --no-restore -c Debug
-        dotnet test --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutput="./result.xml" /p:CoverletOutputFormat=cobertura
+        dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage" /p:CollectCoverage=true /p:CoverletOutput="./result.xml" /p:CoverletOutputFormat=cobertura
     - name: Upload test results
       uses: codecov/codecov-action@v1
       with:
