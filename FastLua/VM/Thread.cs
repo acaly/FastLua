@@ -47,7 +47,7 @@ namespace FastLua.VM
         //Set the sig to contain only a vararg part.
         //This is always followed by an adjustment.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetSigBlockVararg(ref SignatureDesc desc, int pos, int length)
+        internal void SetSigBlockVararg(in SignatureDesc desc, int pos, int length)
         {
             Debug.Assert(desc.SigFLength == 0);
             SigOffset = pos;
@@ -58,7 +58,7 @@ namespace FastLua.VM
         //Adjust sig block. This operation handles sig block generated inside the same function
         //so it should never fail (or it's a program error), and we don't really need to check.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int ResizeSigBlockLeft(ref SignatureDesc desc, int pos)
+        internal int ResizeSigBlockLeft(in SignatureDesc desc, int pos)
         {
             if (SigDesc.SigTypeId == (ulong)WellKnownStackSignature.Null)
             {
@@ -79,7 +79,7 @@ namespace FastLua.VM
 
         //Adjust the sig block with given type without changing its starting position.
         //If varargStorage is not null, copy the vararg part to the separate list.
-        internal bool TryAdjustSigBlockRight(ref StackFrameValues values, ref SignatureDesc desc)
+        internal bool TryAdjustSigBlockRight(ref StackFrameValues values, in SignatureDesc desc)
         {
             if (desc.SigTypeId == SigDesc.SigTypeId)
             {

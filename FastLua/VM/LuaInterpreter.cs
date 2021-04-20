@@ -37,8 +37,7 @@ namespace FastLua.VM
 
             //C#-Lua boundary: after.
 
-            var desc = StackSignature.EmptyV.GetDesc();
-            var adjusted = thread.TryAdjustSigBlockRight(ref values, ref desc);
+            var adjusted = thread.TryAdjustSigBlockRight(ref values, StackSignature.EmptyV.GetDesc());
             Debug.Assert(adjusted);
 
             if (ret is not null)
@@ -76,7 +75,7 @@ namespace FastLua.VM
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
-            if (!thread.TryAdjustSigBlockRight(ref values, ref proto.ParameterSig))
+            if (!thread.TryAdjustSigBlockRight(ref values, in proto.ParameterSig))
             {
                 //Cannot adjust argument list. Adjust the argument list to unspecialized form and call fallback.
                 thread.SigDesc.SigType.AdjustStackToUnspecialized();
@@ -439,7 +438,7 @@ namespace FastLua.VM
                     //If current sig is empty, set the starting point based on lastWrite.
                     ref var argSig = ref proto.SigDesc[b];
                     var sigStart = Math.Max(lastWrite + 1 - argSig.SigFLength, proto.SigRegionOffset);
-                    sigStart = thread.ResizeSigBlockLeft(ref argSig, sigStart);
+                    sigStart = thread.ResizeSigBlockLeft(in argSig, sigStart);
 
                     var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
@@ -495,9 +494,9 @@ namespace FastLua.VM
                     }
 
                     //Overwrite sig as a vararg.
-                    thread.SetSigBlockVararg(ref proto.VarargSig, b, stack[0].VarargInfo.VarargLength);
+                    thread.SetSigBlockVararg(in proto.VarargSig, b, stack[0].VarargInfo.VarargLength);
                     //Then adjust to requested (this is needed in assignment statement).
-                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[a]);
+                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref values, in proto.SigDesc[a]);
                     thread.DiscardVararg(ref values);
                     Debug.Assert(adjustmentSuccess);
 
@@ -604,7 +603,7 @@ namespace FastLua.VM
                         thread.SigOffset = sigStart;
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[b]))
+                        if (!thread.TryAdjustSigBlockRight(ref values, in proto.SigDesc[b]))
                         {
                             throw new NotImplementedException();
                         }
@@ -711,7 +710,7 @@ namespace FastLua.VM
                 closure = thread.ClosureStack.Pop();
 
                 //Adjust return values (without moving additional to vararg list).
-                if (!thread.TryAdjustSigBlockRight(ref values, ref proto.SigDesc[stack[0].RetSigIndex]))
+                if (!thread.TryAdjustSigBlockRight(ref values, in proto.SigDesc[stack[0].RetSigIndex]))
                 {
                     throw new NotImplementedException();
                 }
