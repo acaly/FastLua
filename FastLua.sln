@@ -9,7 +9,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLuaExample", "FastLuaEx
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLuaTest", "FastLuaTest\FastLuaTest.csproj", "{5AE3F9DB-6414-454A-8CF6-E1BAB6911120}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FastLuaBenchmark", "FastLuaBenchmark\FastLuaBenchmark.csproj", "{F26F4844-276F-44F9-B7AA-D291CEB64573}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FastLuaBenchmark", "FastLuaBenchmark\FastLuaBenchmark.csproj", "{F26F4844-276F-44F9-B7AA-D291CEB64573}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3C37229E-86BB-415E-A5E4-88B5993681F9}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
