@@ -37,13 +37,20 @@ namespace FastLua.VM
 
             //C#-Lua boundary: after.
 
-            ret.Clear();
             var desc = StackSignature.EmptyV.GetDesc();
             var adjusted = thread.TryAdjustSigBlockRight(ref values, ref desc);
             Debug.Assert(adjusted);
 
-            StackFrameVarargInfo varargInfo = default;
-            thread.WriteVararg(ref values, ret, ref varargInfo);
+            if (ret is not null)
+            {
+                ret.Clear();
+                StackFrameVarargInfo varargInfo = default;
+                thread.WriteVararg(ref values, ret, ref varargInfo);
+            }
+            else
+            {
+                thread.DiscardVararg(ref values);
+            }
         }
 
         internal static void Execute(Thread thread, LClosure closure, ref StackFrame stack)
