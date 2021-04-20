@@ -40,8 +40,7 @@ namespace FastLuaBenchmark
             global::KopiLua.Lua.luaL_loadstring(_kopiLuaState, new(code));
         }
 
-        //[Params("self_function", "numeric_for")]
-        [Params("recursive_call")]
+        [Params("self_function", "numeric_for", "recursive_call")]
         public string ScriptFile
         {
             set => PrepareScripts(value);
@@ -49,28 +48,33 @@ namespace FastLuaBenchmark
 
         private readonly Thread _fastLuaThread = new();
         private readonly List<TypedValue> _fastLuaRetList = new();
+        private readonly StackInfo _fastLuaStackFrame;
         private LClosure _fastLuaClosure;
 
         private MoonSharp.Interpreter.Closure _moonSharpClosure;
 
         private readonly KopiLua.Lua.lua_State _kopiLuaState = global::KopiLua.Lua.luaL_newstate();
 
+        public Program()
+        {
+            _fastLuaStackFrame = _fastLuaThread.AllocateRootCSharpStack(1);
+        }
+
         [Benchmark]
         public double FastLua()
         {
-            var stack = _fastLuaThread.AllocateCSharpStack(1);
-            stack.Write(0, default);
-            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, stack, _fastLuaRetList);
+            _fastLuaStackFrame.Write(0, default);
+            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, _fastLuaRetList);
             return _fastLuaRetList[0].NumberVal;
         }
 
-        //[Benchmark(Baseline = true)]
+        [Benchmark(Baseline = true)]
         public double MoonSharp()
         {
             return _moonSharpClosure.Call().Number;
         }
 
-        //[Benchmark]
+        [Benchmark]
         public double KopiLua()
         {
             global::KopiLua.Lua.lua_pushvalue(_kopiLuaState, -1);
@@ -88,7 +92,7 @@ namespace FastLuaBenchmark
                 {
                     "--filter", "Program",
                     "--maxIterationCount", "20",
-                    "--iterationTime", "1000",
+                    "--iterationTime", "200",
                 };
             }
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new CustomConfig());

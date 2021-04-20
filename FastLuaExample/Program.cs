@@ -88,15 +88,11 @@ end
 ";
 
         private static readonly string _code4 = @"
-local count = 0
-local function f(level)
-	if level == 5 then return end
-	f(level + 1)
-	f(level + 1)
-	count = count + 1
+local a = 0
+for i = 1, 5 do
+	a = a + i
 end
-f(0)
-return count";
+return a";
 
         public static void Main()
         {
@@ -119,10 +115,10 @@ return count";
             var closure = codeGen.Compile(ast, null);
 
             var thread = new Thread();
-            var stack = thread.AllocateFirstFrame(1);
+            ref var stack = ref thread.AllocateFirstFrame(1);
 
             var clock = Stopwatch.StartNew();
-            for (int i = 0; i < 2000000; ++i)
+            for (int i = 0; i < 10000000; ++i)
             {
                 thread.ClearSigBlock();
                 LuaInterpreter.Execute(thread, closure, ref stack);

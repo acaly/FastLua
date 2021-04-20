@@ -37,8 +37,7 @@ namespace FastLua.VM
             }
 
             Thread.ClearSigBlock();
-            var empty = SignatureDesc.Empty;
-            Thread.SetSigBlock(ref empty, start);
+            Thread.SetSigBlock(in SignatureDesc.Empty, start);
         }
 
         //TODO read
@@ -87,8 +86,14 @@ namespace FastLua.VM
         public int Segment;
         public int Offset;
         public int Length;
-        public int PC;
+
         public bool ForceOnSameSegment;
+        public bool ActualOnSameSegment;
+
+        public int PC;
+        public int LastWrite;
+        public int SigOffset;
+        public int RetSigIndex;
 
         public StackFrameVarargInfo VarargInfo;
     }

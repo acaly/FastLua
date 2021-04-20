@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -36,7 +37,7 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetSigBlock(ref SignatureDesc desc, int pos)
+        internal void SetSigBlock(in SignatureDesc desc, int pos)
         {
             //Keep VLength.
             SigOffset = pos;
@@ -155,7 +156,9 @@ namespace FastLua.VM
         private readonly List<TypedValue[]> _segments = new();
         private FastList<StackFrame> _serializedFrames;
 
-        public StackInfo AllocateCSharpStack(int size)
+        internal Stack<LClosure> ClosureStack = new();
+
+        public StackInfo AllocateRootCSharpStack(int size)
         {
             AllocateFirstFrame(size);
             return new StackInfo
@@ -183,6 +186,7 @@ namespace FastLua.VM
         {
             Debug.Assert(_serializedFrames.Count == 0);
             Debug.Assert(size < Options.MaxSingleFunctionStackSize);
+            Debug.Assert(Options.MaxSingleFunctionStackSize < ushort.MaxValue);
 
             ref var ret = ref _serializedFrames.Add();
             ret.Segment = 0;
@@ -194,7 +198,7 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ref StackFrame AllocateNextFrame(ref StackFrame lastFrame, int size, bool onSameSeg)
+        internal Span<StackFrame> AllocateNextFrame(ref StackFrame lastFrame, int size, bool onSameSeg)
         {
             Debug.Assert(_serializedFrames.Count > 0);
             Debug.Assert(Unsafe.AreSame(ref lastFrame, ref _serializedFrames.Last));
@@ -208,7 +212,7 @@ namespace FastLua.VM
 
             if (s.Length < newStart + newSize)
             {
-                return ref AllocateNextFrameSlow(ref lastFrame, size, onSameSeg);
+                return AllocateNextFrameSlow(ref lastFrame, size, onSameSeg);
             }
 
             ref var ret = ref _serializedFrames.Add();
@@ -218,11 +222,12 @@ namespace FastLua.VM
             ret.Offset = newStart;
             ret.Length = newSize;
             ret.ForceOnSameSegment = onSameSeg;
+            ret.ActualOnSameSegment = true;
 
-            return ref ret;
+            return MemoryMarshal.CreateSpan(ref ret, 1);
         }
 
-        private ref StackFrame AllocateNextFrameSlow(ref StackFrame lastFrame, int size, bool onSameSeg)
+        private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, int size, bool onSameSeg)
         {
             ref var ret = ref _serializedFrames.Add();
 
@@ -252,8 +257,9 @@ namespace FastLua.VM
                 ret.Offset = 0;
                 ret.Length = newSize;
                 ret.ForceOnSameSegment = false;
+                ret.ActualOnSameSegment = false;
 
-                return ref ret;
+                return MemoryMarshal.CreateSpan(ref ret, 1);
             }
 
             //Lua stack relocation.
@@ -281,6 +287,11 @@ namespace FastLua.VM
             {
                 realNewSize *= 2;
             }
+            if (realNewSize > ushort.MaxValue)
+            {
+                //Lua stack overflow.
+                throw new Exception();
+            }
 
             //Relocate.
             var newSegment = new TypedValue[realNewSize];
@@ -306,10 +317,24 @@ namespace FastLua.VM
             throw new RecoverableException();
         }
 
-        internal void DeallocateFrame(ref StackFrame frame)
+        internal void DeallocateFrame(ref Span<StackFrame> frame)
         {
-            Debug.Assert(Unsafe.AreSame(ref frame, ref _serializedFrames.Last));
+            Debug.Assert(Unsafe.AreSame(ref frame[0], ref _serializedFrames.Last));
             _serializedFrames.RemoveLast();
+            if (_serializedFrames.Count > 0)
+            {
+                frame = MemoryMarshal.CreateSpan(ref _serializedFrames.Last, 1);
+            }
+            else
+            {
+                frame = default;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal ref StackFrame GetLastFrame(ref StackFrame frame)
+        {
+            return ref Unsafe.Add(ref frame, -1);
         }
     }
 }

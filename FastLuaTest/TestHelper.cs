@@ -40,7 +40,7 @@ namespace FastLuaTest
 
             var thread = new Thread();
             var stackSize = Math.Max(args.Length, results.Length);
-            var stack = thread.AllocateCSharpStack(stackSize);
+            var stack = thread.AllocateRootCSharpStack(stackSize);
             if (args.Length > 0)
             {
                 throw new NotImplementedException();
