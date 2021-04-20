@@ -63,10 +63,8 @@ namespace FastLuaBenchmark
         [Benchmark]
         public double FastLua()
         {
-            _fastLuaStackFrame.Write(0, default);
-            TypedValue ret = default;
             LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, 0, 0);
-            _fastLuaStackFrame.Read(0, MemoryMarshal.CreateSpan(ref ret, 1));
+            _fastLuaStackFrame.Read(0, out var ret);
             return ret.NumberVal;
         }
 

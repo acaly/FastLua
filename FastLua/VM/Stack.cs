@@ -34,10 +34,27 @@ namespace FastLua.VM
             values.CopyTo(frameValues.Span[start..]);
         }
 
+        public void Write(int start, in TypedValue values)
+        {
+            Write(start, MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in values), 1));
+        }
+
         public void Read(int start, Span<TypedValue> values)
         {
             var frameValues = Thread.GetFrameValues(ref Thread.GetFrame(StackFrame));
-            frameValues.Span[start..].CopyTo(values);
+            var copyLen = Math.Min(frameValues.Span.Length - start, values.Length);
+            frameValues.Span.Slice(start, copyLen).CopyTo(values);
+        }
+
+        public void Read(int start, out TypedValue value)
+        {
+            value = TypedValue.Nil;
+            Read(start, MemoryMarshal.CreateSpan(ref value, 1));
+        }
+
+        public void Reallocate(int newSize)
+        {
+            Thread.ReallocateFrameInternal(ref Thread.GetFrame(StackFrame), newSize);
         }
     }
 

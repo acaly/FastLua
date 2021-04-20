@@ -251,6 +251,13 @@ namespace FastLua.VM
             return MemoryMarshal.CreateSpan(ref ret, 1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal StackInfo ConvertToNativeFrame(ref StackFrame frame)
+        {
+            Debug.Assert(Unsafe.AreSame(ref frame, ref _serializedFrames.Last));
+            return new() { Thread = this, StackFrame = _serializedFrames.Count - 1 };
+        }
+
         private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, int size, bool onSameSeg)
         {
             ref var ret = ref _serializedFrames.Add();
@@ -291,21 +298,41 @@ namespace FastLua.VM
             //enough space. Need to relocate all existing frames that requires OnSameSegment.
             //This should be very rare for any normal code.
 
+            ReallocateFrameInternal(ref lastFrame, SigOffset + newSize);
+
+            //Use RecoverableException to restart all Lua frames. This is necessary
+            //to update the Span<TypedValue> on native C# stack.
+            //We can alternatively update all of them here, but that would require
+            //maintaining a linked list of Spans, which introduces overhead for each
+            //CALL/CALLC.
+            throw new RecoverableException();
+        }
+
+        internal void ReallocateFrameInternal(ref StackFrame currentFrame, int currentFrameNewSize)
+        {
+            Debug.Assert(Unsafe.AreSame(ref currentFrame, ref _serializedFrames.Last));
+            if (currentFrame.Length >= currentFrameNewSize)
+            {
+                return;
+            }
+
+            var seg = currentFrame.Segment;
+
             //Remove unused segments. We don't want to keep more than one large segment.
-            _segments.RemoveRange(newHead + 1, _segments.Count - newHead - 1);
+            _segments.RemoveRange(seg + 1, _segments.Count - seg - 1);
 
             //Find the range of frames to relocate.
             var relocationBegin = _serializedFrames.Count - 1;
             while (_serializedFrames[relocationBegin].ForceOnSameSegment)
             {
                 Debug.Assert(relocationBegin > 0);
-                Debug.Assert(_serializedFrames[relocationBegin - 1].Segment == newHead);
+                Debug.Assert(_serializedFrames[relocationBegin - 1].Segment == seg);
                 relocationBegin -= 1;
             }
 
             //Calculate total size required for all relocated frames.
-            var minNewSize = lastFrame.Offset - _serializedFrames[relocationBegin].Offset;
-            minNewSize += SigOffset + newSize;
+            var minNewSize = currentFrame.Offset - _serializedFrames[relocationBegin].Offset;
+            minNewSize += currentFrameNewSize;
             var realNewSize = Options.StackSegmentSize * 2;
             while (realNewSize < minNewSize)
             {
@@ -320,25 +347,14 @@ namespace FastLua.VM
             //Relocate.
             var newSegment = new TypedValue[realNewSize];
             var relocationOffset = _serializedFrames[relocationBegin].Offset;
-            _segments[newHead].AsSpan()[relocationOffset..]
+            _segments[seg].AsSpan()[relocationOffset..]
                 .CopyTo(newSegment.AsSpan());
-            _segments[newHead] = s = newSegment;
+            _segments[seg] = newSegment;
             for (int i = relocationBegin; i < _serializedFrames.Count; ++i)
             {
                 ref var f = ref _serializedFrames[i];
                 f.Offset -= relocationOffset;
             }
-            newStart -= relocationOffset;
-
-            //Confirm we have leave enough space.
-            Debug.Assert(s.Length < newStart + newSize);
-
-            //Use RecoverableException to restart all Lua frames. This is necessary
-            //to update the Span<TypedValue> on native C# stack.
-            //We can alternatively update all of them here, but that would require
-            //maintaining a linked list of Spans, which introduces overhead for each
-            //CALL/CALLC.
-            throw new RecoverableException();
         }
 
         internal void DeallocateFrame(ref Span<StackFrame> frame)

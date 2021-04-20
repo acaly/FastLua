@@ -324,7 +324,6 @@ namespace FastLua.Parser
                     if (next == '.')
                     {
                         //Not a number.
-                        NextChar(); //Skip the first '.'.
                         NextChar(); //Skip the second '.'.
                         if (NextChar() != '.')
                         {

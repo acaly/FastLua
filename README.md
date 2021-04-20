@@ -31,7 +31,7 @@ easy to make it run on older runtimes, including Unity.
 
 Basic functionality:
 - [x] Call Lua from C#.
-- [ ] Call C# from Lua.
+- [x] Call C# from Lua.
 - [ ] Metatable.
 - [ ] Exception handling.
 - [ ] Coroutine.

@@ -130,7 +130,22 @@ namespace FastLua.VM
 
         public static void WriteString(StringBuilder sb, TypedValue a)
         {
-            throw new NotImplementedException();
+            if (a.Type == VMSpecializationType.String)
+            {
+                sb.Append(a.StringVal);
+            }
+            else if (a.Type == VMSpecializationType.Int)
+            {
+                sb.Append(a.IntVal.ToString());
+            }
+            else if (a.Type == VMSpecializationType.Double)
+            {
+                sb.Append(a.DoubleVal.ToString());
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
         }
 
         //Convert unspecialized type to double.

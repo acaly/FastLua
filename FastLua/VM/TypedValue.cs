@@ -164,6 +164,16 @@ namespace FastLua.VM
             Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.LClosure << 32),
             Object = val,
         };
+        public static TypedValue MakeNClosure(NativeFunctionDelegate val) => new()
+        {
+            Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.NClosure << 32),
+            Object = val,
+        };
+        public static TypedValue MakeNClosure(AsyncNativeFunctionDelegate val) => new()
+        {
+            Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.NClosure << 32),
+            Object = val,
+        };
         public static TypedValue MakeTable(Table val) => new()
         {
             Number = BitConverter.Int64BitsToDouble(NNMarkL | (long)VMSpecializationType.Table << 32),

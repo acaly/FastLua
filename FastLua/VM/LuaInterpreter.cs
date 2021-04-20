@@ -39,6 +39,11 @@ namespace FastLua.VM
                 //an int instruction. If so, deoptimize the function and recover.
                 throw;
             }
+            catch
+            {
+                //TODO unrolled Lua frames (deallocate, clear values).
+                throw;
+            }
             thread.SigOffset = argOffset; //Restore sig offset.
 
             //C#-Lua boundary: after.
@@ -47,6 +52,79 @@ namespace FastLua.VM
             Debug.Assert(adjusted);
 
             return thread.SigVLength;
+        }
+
+        private static void CallNonLuaFunction(Thread thread, Span<StackFrame> stack, ref StackFrameValues values,
+            object func, ref int pc)
+        {
+            var sigStart = thread.SigOffset;
+            int retSize;
+            if (func is NativeFunctionDelegate nativeFunc)
+            {
+                //Lua-C# boundary, before.
+
+                //Allocate C# frame.
+                //This frame is not too different from a Lua frame.
+                //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0],
+                    Options.DefaultNativeStackSize, onSameSeg: true);
+
+                //Native function always accepts unspecialized stack.
+                var adjust = thread.TryAdjustSigBlockRight(ref values, in SignatureDesc.EmptyV);
+                Debug.Assert(adjust);
+
+                //Call native function.
+                retSize = nativeFunc(thread.ConvertToNativeFrame(ref nativeFrame[0]), thread.SigVLength);
+                thread.DeallocateFrame(ref nativeFrame);
+            }
+            else if (func is AsyncNativeFunctionDelegate asyncNativeFunc)
+            {
+                //Lua-C# boundary, before.
+
+                //Allocate C# frame.
+                //This frame is not too different from a Lua frame.
+                //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0],
+                    Options.DefaultNativeStackSize, onSameSeg: true);
+
+                //Native function always accepts unspecialized stack.
+                var adjust = thread.TryAdjustSigBlockRight(ref values, in SignatureDesc.EmptyV);
+                Debug.Assert(adjust);
+
+                //Call native function.
+                var retTask = asyncNativeFunc(thread.ConvertToNativeFrame(ref nativeFrame[0]), thread.SigVLength);
+                if (!retTask.IsCompleted)
+                {
+                    //Yield (need to save the task).
+                    throw new NotImplementedException();
+                }
+
+                retSize = retTask.Result;
+                thread.DeallocateFrame(ref nativeFrame);
+            }
+            else
+            {
+                //TODO check metatable
+                throw new NotImplementedException();
+            }
+
+            //After native function call returns.
+
+            //Lua-C# boundary, after.
+
+            //Set sig block (this will be adjusted later).
+            thread.SetSigBlock(in SignatureDesc.EmptyV, sigStart);
+            thread.SigVLength = retSize;
+
+            //Check Lua stack relocation.
+            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0]).Span[0]))
+            {
+                pc += 1;
+                stack[0].PC = pc;
+
+                //TODO Need to set up some flags so that when recovered we start from ret sig adjustment.
+                throw new RecoverableException();
+            }
         }
 
         private static void InterpreterLoop(Thread thread, LClosure closure, ref StackFrame lastFrame, bool forceOnSameSeg)
@@ -58,7 +136,7 @@ namespace FastLua.VM
             var proto = closure.Proto;
             var stack = thread.AllocateNextFrame(ref lastFrame, proto.StackSize, forceOnSameSeg);
 
-        enterNewFrame:
+        enterNewLuaFrame:
             var values = thread.GetFrameValues(ref stack[0]);
 
             //Adjust argument list according to the requirement of the callee.
@@ -84,11 +162,12 @@ namespace FastLua.VM
             var pc = 0;
             var lastWrite = 0;
             var inst = proto.Instructions;
+            uint ii;
 
         continueOldFrame:
             while (true)
             {
-                var ii = inst[pc++];
+                ii = inst[pc++];
                 switch ((Opcodes)(ii >> 24))
                 {
                 case Opcodes.NOP:
@@ -445,32 +524,12 @@ namespace FastLua.VM
                         stack = thread.AllocateNextFrame(ref stack[0], proto.StackSize,
                             argSig.HasV || proto.SigDesc[c].HasV);
 
-                        goto enterNewFrame;
+                        goto enterNewLuaFrame;
                     }
                     else
                     {
-                        //Lua-C# boundary, before.
-
-                        //TODO allocate C# frame
-                        //Ensure PC = 0 (used by RET0/RETN to check whether last frame is Lua frame)
-
-                        //native closure/native func
-                        throw new NotImplementedException();
-
-                        //Lua-C# boundary, after.
-
-                        //TODO restore sig offset
-
-                        //Check Lua stack relocation.
-                        if (Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0]).Span[0]))
-                        {
-                            pc += 1;
-                            stack[0].PC = pc;
-                            //TODO store pc
-                            throw new RecoverableException();
-                        }
-
-                        break;
+                        CallNonLuaFunction(thread, stack, ref values, newFuncP, ref pc);
+                        goto returnFromNativeFunction;
                     }
                 }
                 case Opcodes.VARG:
@@ -601,27 +660,12 @@ namespace FastLua.VM
                         proto = lc.Proto;
                         stack = thread.AllocateNextFrame(ref stack[0], proto.StackSize, onSameSeg: false);
 
-                        goto enterNewFrame;
+                        goto enterNewLuaFrame;
                     }
                     else
                     {
-                        //Lua-C# boundary, before.
-
-                        //native closure/native func
-                        throw new NotImplementedException();
-
-                        //Lua-C# boundary, after.
-
-                        //TODO restore sig offset
-
-                        //Check Lua stack relocation.
-                        if (Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0]).Span[0]))
-                        {
-                            pc += 1;
-                            stack[0].PC = pc;
-                            //TODO store pc
-                            throw new RecoverableException();
-                        }
+                        CallNonLuaFunction(thread, stack, ref values, newFuncP, ref pc);
+                        goto returnFromNativeFunction;
                     }
                 }
                 case Opcodes.SIG:
@@ -636,7 +680,7 @@ namespace FastLua.VM
                 {
                     //No need to pass anything to caller.
                     thread.ClearSigBlock();
-                    goto loopEnd;
+                    goto returnFromLuaFunction;
                 }
                 case Opcodes.RETN:
                 {
@@ -669,11 +713,14 @@ namespace FastLua.VM
                         //The onSameSegment mechanism ensures this range is valid.
                         retSpan[i] = values[thread.SigOffset + i];
                     }
-                    goto loopEnd;
+                    goto returnFromLuaFunction;
                 }
                 }
             }
-        loopEnd:
+
+        returnFromLuaFunction:
+            //Jump target when exiting a Lua frame (to either another Lua frame or a native frame).
+
             //Clear object stack to avoid memory leak.
             if (stack[0].ActualOnSameSegment)
             {
@@ -688,50 +735,58 @@ namespace FastLua.VM
             thread.DeallocateFrame(ref stack);
 
             pc = stack[0].PC;
-            if (pc != 0)
+            if (pc == 0)
             {
-                //Exit to another Lua frame.
-                //Restore parent frame state and continue.
-                closure = thread.ClosureStack.Pop();
-
-                //Adjust return values (without moving additional to vararg list).
-                if (!thread.TryAdjustSigBlockRight(ref values, in proto.SigDesc[stack[0].RetSigIndex]))
-                {
-                    throw new NotImplementedException();
-                }
-                //TODO should we discard? (maybe clear for FORG?)
-                //thread.DiscardVararg(ref values);
-
-                //Restore.
-                proto = closure.Proto;
-                values = thread.GetFrameValues(ref stack[0]);
-                thread.SigOffset = stack[0].SigOffset;
-                inst = proto.Instructions;
-                lastWrite = stack[0].LastWrite;
-
-                var ii = proto.Instructions[pc - 1];
-                switch ((Opcodes)(ii >> 24))
-                {
-                case Opcodes.CALLC:
-                    thread.ClearSigBlock();
-                    lastWrite = 0;
-                    break;
-                case Opcodes.FORG:
-                    thread.ClearSigBlock();
-                    lastWrite = 0;
-
-                    //For-loop related logic.
-                    int a = (int)((ii >> 16) & 0xFF);
-
-                    if (values[a + 3].Type == VMSpecializationType.Nil)
-                    {
-                        pc += (sbyte)(byte)(ii & 0xFF);
-                    }
-                    values[a + 2] = values[a + 3]; //var = var_1
-                    break;
-                }
-                goto continueOldFrame;
+                //Lua frames cannot have pc == 0 when calling another function.
+                //This is a native (C#) frame. Exit interpreter.
+                return;
             }
+
+            //Exit from one Lua frame to another Lua frame.
+            //Restore parent frame state and continue.
+
+            //Restore.
+            closure = thread.ClosureStack.Pop();
+            proto = closure.Proto;
+            values = thread.GetFrameValues(ref stack[0]);
+            thread.SigOffset = stack[0].SigOffset;
+            inst = proto.Instructions;
+            lastWrite = stack[0].LastWrite;
+
+        returnFromNativeFunction:
+            //Jump target from calls to native (C#) functions. These calls also need to adjust the
+            //sig block, but it does not require the same restore step.
+
+            //Adjust return values (without moving additional to vararg list).
+            if (!thread.TryAdjustSigBlockRight(ref values, in proto.SigDesc[stack[0].RetSigIndex]))
+            {
+                throw new NotImplementedException();
+            }
+            //TODO should we discard? (maybe clear for FORG?)
+            //thread.DiscardVararg(ref values);
+
+            ii = proto.Instructions[pc - 1];
+            switch ((Opcodes)(ii >> 24))
+            {
+            case Opcodes.CALLC:
+                thread.ClearSigBlock();
+                lastWrite = 0;
+                break;
+            case Opcodes.FORG:
+                thread.ClearSigBlock();
+                lastWrite = 0;
+
+                //For-loop related logic.
+                int a = (int)((ii >> 16) & 0xFF);
+
+                if (values[a + 3].Type == VMSpecializationType.Nil)
+                {
+                    pc += (sbyte)(byte)(ii & 0xFF);
+                }
+                values[a + 2] = values[a + 3]; //var = var_1
+                break;
+            }
+            goto continueOldFrame;
         }
     }
 }

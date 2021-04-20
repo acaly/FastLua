@@ -13,5 +13,6 @@ namespace FastLua
         public static int MaxSingleFunctionStackSize = 200;
         public static int StackSegmentSize = 4000;
         public static int InitialFrameCapacity = 100;
+        public static int DefaultNativeStackSize = 20;
     }
 }

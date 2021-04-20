@@ -603,7 +603,10 @@ namespace FastLua.Parser
                 Next(ref t);
                 return ret;
             case LuaTokenType.Dots:
-                ret = new VarargExpressionSyntaxNode();
+                ret = new VarargExpressionSyntaxNode()
+                {
+                    MultiRetState = ExpressionMultiRetState.MayBe,
+                };
                 Next(ref t);
                 return ret;
             case (LuaTokenType)'{':
