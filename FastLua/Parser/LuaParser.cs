@@ -176,6 +176,19 @@ namespace FastLua.Parser
             }
         }
 
+        private static void TryReduceLastExpr(ExpressionListSyntaxNode exprList, int recvCount)
+        {
+            Debug.Assert(recvCount > 0);
+
+            //Quick optimization: ExprList will set the last expr to multiret.
+            //However, if the number of exprs >= number of vars, the last will
+            //be converted to singleret.
+            if (recvCount <= exprList.Expressions.Count)
+            {
+                exprList.Expressions[^1].ReceiverMultiRetState = ExpressionReceiverMultiRetState.Fixed;
+            }
+        }
+
         private void Assignment(ref Token t, VariableSyntaxNode v)
         {
             var assignment = new AssignmentStatementSyntaxNode()
@@ -196,6 +209,7 @@ namespace FastLua.Parser
             }
             CheckAndNext(ref t, (LuaTokenType)'=');
             assignment.Values = ExprList(ref t);
+            TryReduceLastExpr(assignment.Values, assignment.Variables.Count);
             _output.CurrentBlock.Add(assignment);
         }
 
@@ -258,6 +272,7 @@ namespace FastLua.Parser
             {
                 assignment.ExpressionList = ExprList(ref t);
             }
+            TryReduceLastExpr(assignment.ExpressionList, assignment.Variables.Count);
             _output.CurrentBlock.Add(assignment);
         }
 
@@ -507,13 +522,13 @@ namespace FastLua.Parser
             {
                 ret.Expressions.Add(Expr(ref t));
             } while (TestAndNext(ref t, (LuaTokenType)','));
-            if (ret.Expressions.Count > 0)
+
+            var lastExpr = ret.Expressions[^1];
+            if ((lastExpr.MultiRetState == ExpressionMultiRetState.MayBe ||
+                 lastExpr.MultiRetState == ExpressionMultiRetState.MustBe) &&
+                lastExpr.ReceiverMultiRetState != ExpressionReceiverMultiRetState.Fixed)
             {
-                var lastExpr = ret.Expressions[^1];
-                if (lastExpr is InvocationExpressionSyntaxNode || lastExpr is VarargExpressionSyntaxNode)
-                {
-                    lastExpr.ReceiverMultiRetState = ExpressionReceiverMultiRetState.Variable;
-                }
+                lastExpr.ReceiverMultiRetState = ExpressionReceiverMultiRetState.Variable;
             }
             return ret;
         }
@@ -693,6 +708,7 @@ namespace FastLua.Parser
             case (LuaTokenType)'(':
                 Next(ref t);
                 ret = Expr(ref t);
+                ret.ReceiverMultiRetState = ExpressionReceiverMultiRetState.Fixed;
                 CheckAndNext(ref t, (LuaTokenType)')');
                 return ret;
             default:

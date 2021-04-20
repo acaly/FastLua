@@ -18,6 +18,12 @@ namespace FastLua.SyntaxTree
 
     public enum ExpressionReceiverMultiRetState
     {
+        //After parsing, unknown means fixed.
+        //We need two, because (...) will set the VarargExpr to a different
+        //state than Unknown, so that when it's in expr list, it won't be
+        //set to variable again.
+
+        Unknown,
         Fixed,
         Variable,
     }

@@ -23,7 +23,14 @@ namespace FastLua.SyntaxTree
         {
             get
             {
-                if (Expressions.Count == 0) return false;
+                if (Expressions.Count == 0)
+                {
+                    return false;
+                }
+                if (Expressions[^1].ReceiverMultiRetState != ExpressionReceiverMultiRetState.Variable)
+                {
+                    return false;
+                }
                 var lastState = Expressions[^1].MultiRetState;
                 return lastState == ExpressionMultiRetState.MayBe ||
                     lastState == ExpressionMultiRetState.MustBe;
