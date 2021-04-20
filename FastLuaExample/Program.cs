@@ -1,17 +1,9 @@
-﻿using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
-using FastLua.CodeGen;
-using FastLua.Diagnostics;
+﻿using FastLua.CodeGen;
 using FastLua.Parser;
-using FastLua.SyntaxTree;
 using FastLua.VM;
 using System;
-using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 
 namespace FastLuaExample
 {
