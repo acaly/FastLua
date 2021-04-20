@@ -18,7 +18,7 @@ namespace FastLuaTest
             TestHelper.DoString(
                 "local a = 1 " +
                 "local function get() return a end " +
-                "return get()", args, results);
+                "return get()", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(1.0, results[0].NumberVal);
         }
@@ -32,7 +32,7 @@ namespace FastLuaTest
                 "local a = 1 " +
                 "local function set(val) a = val end " +
                 "set(2) " +
-                "return a", args, results);
+                "return a", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(2.0, results[0].NumberVal);
         }
@@ -47,7 +47,7 @@ namespace FastLuaTest
                 "local function set(val) a = val end " +
                 "local function get() return a end " +
                 "set(2) " +
-                "return get()", args, results);
+                "return get()", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(2.0, results[0].NumberVal);
         }

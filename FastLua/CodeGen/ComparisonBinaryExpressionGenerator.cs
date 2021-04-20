@@ -81,11 +81,11 @@ namespace FastLua.CodeGen
 
             writer.WriteUUS(_opcode, leftStack.Offset, rightStack.Offset, 0);
             writer.AddLabelFix(trueLabel, InstructionWriter.FixUUSJump);
-            writer.WriteUUU(Opcodes.MOV, dest.Offset, _false, 0);
+            writer.WriteUUU(Opcodes.K, dest.Offset, _false, 0);
             writer.WriteUSx(Opcodes.JMP, 0, 0);
             writer.AddLabelFix(exitLabel, InstructionWriter.FixUSxJump);
             writer.MarkLabel(trueLabel);
-            writer.WriteUUU(Opcodes.MOV, dest.Offset, _true, 0);
+            writer.WriteUUU(Opcodes.K, dest.Offset, _true, 0);
             writer.MarkLabel(exitLabel);
         }
     }

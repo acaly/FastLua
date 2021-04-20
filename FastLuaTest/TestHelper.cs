@@ -1,6 +1,7 @@
 ﻿using FastLua.CodeGen;
 using FastLua.Parser;
 using FastLua.VM;
+using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +14,40 @@ namespace FastLuaTest
 {
     internal static class TestHelper
     {
-        private static LClosure Compile(string code)
+        public static readonly Table AssertEnv;
+        public static readonly Table DefaultEnv;
+
+        static TestHelper()
+        {
+            AssertEnv = new Table();
+            AssertEnv.SetRaw(TypedValue.MakeString("assert"), TypedValue.MakeNClosure(AssertFunc));
+
+            DefaultEnv = new Table();
+            DefaultEnv.SetRaw(TypedValue.MakeString("assert"), TypedValue.MakeNClosure(AssertFunc));
+            DefaultEnv.SetRaw(TypedValue.MakeString("add"), TypedValue.MakeNClosure(AddFunc));
+        }
+
+        private static int AssertFunc(StackInfo stack, int args)
+        {
+            Assert.AreEqual(1, args);
+            stack.Read(0, out var val);
+            Assert.AreEqual(LuaValueType.Bool, val.ValueType);
+            Assert.IsTrue(val.BoolVal);
+            return 0;
+        }
+
+        private static int AddFunc(StackInfo stack, int args)
+        {
+            Assert.AreEqual(2, args);
+            stack.Read(0, out var a);
+            stack.Read(1, out var b);
+            Assert.AreEqual(LuaValueType.Number, a.ValueType);
+            Assert.AreEqual(LuaValueType.Number, b.ValueType);
+            stack.Write(0, TypedValue.MakeDouble(a.NumberVal + b.NumberVal));
+            return 1;
+        }
+
+        private static LClosure Compile(string code, Table env)
         {
             var codeReader = new StringReader(code);
             var rawTokens = new LuaRawTokenizer();
@@ -31,12 +65,12 @@ namespace FastLuaTest
             var ast = builder.Finish();
 
             var codeGen = new CodeGenerator();
-            return codeGen.Compile(ast, null);
+            return codeGen.Compile(ast, env);
         }
 
-        public static void DoString(string str, Span<TypedValue> args, Span<TypedValue> results)
+        public static void DoString(string str, Table env, Span<TypedValue> args, Span<TypedValue> results)
         {
-            var closure = Compile(str);
+            var closure = Compile(str, env);
 
             var thread = new Thread();
             var stackSize = Math.Max(args.Length, results.Length);

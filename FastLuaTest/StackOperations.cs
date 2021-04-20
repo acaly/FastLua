@@ -15,7 +15,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
-            TestHelper.DoString("return 10", args, results);
+            TestHelper.DoString("return 10", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(10.0, results[0].NumberVal);
         }
@@ -25,7 +25,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
-            TestHelper.DoString("local a = 20 return a", args, results);
+            TestHelper.DoString("local a = 20 return a", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(20.0, results[0].NumberVal);
         }
@@ -35,7 +35,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
-            TestHelper.DoString("local a = 21 local b, c = 2, a - 1 return b * c", args, results);
+            TestHelper.DoString("local a = 21 local b, c = 2, a - 1 return b * c", null, args, results);
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(40.0, results[0].NumberVal);
         }

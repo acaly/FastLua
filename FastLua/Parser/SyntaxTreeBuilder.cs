@@ -218,7 +218,9 @@ namespace FastLua.Parser
                         Closure.UpValueLists.Add(new(parentList.Node.ExportUpValueList.Target));
                     }
 
-                    return new LocalVariableInfo(definition);
+                    var thisInfo = new LocalVariableInfo(definition);
+                    ImportedUpvals.Add(name, thisInfo);
+                    return thisInfo;
                 }
                 if (ParentFunction is not null)
                 {

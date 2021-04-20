@@ -15,7 +15,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = Array.Empty<TypedValue>();
-            TestHelper.DoString("", args, results);
+            TestHelper.DoString("", null, args, results);
         }
 
         [Test]
@@ -23,7 +23,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
-            TestHelper.DoString("", args, results);
+            TestHelper.DoString("", null, args, results);
             Assert.AreEqual(LuaValueType.Nil, results[0].ValueType);
         }
 
@@ -32,7 +32,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = Array.Empty<TypedValue>();
-            TestHelper.DoString("--single line comment", args, results);
+            TestHelper.DoString("--single line comment", null, args, results);
         }
 
         [Test]
@@ -40,7 +40,7 @@ namespace FastLuaTest
         {
             var args = Array.Empty<TypedValue>();
             var results = Array.Empty<TypedValue>();
-            TestHelper.DoString("--[[multi \r\n line\r\n comment]]", args, results);
+            TestHelper.DoString("--[[multi \r\n line\r\n comment]]", null, args, results);
         }
     }
 }

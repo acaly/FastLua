@@ -11,6 +11,7 @@ namespace FastLua.VM
     {
         Unknown,
         Nil,
+        Bool,
         Number,
         String,
         Table,
@@ -74,6 +75,7 @@ namespace FastLua.VM
             get => Type switch
             {
                 VMSpecializationType.Nil => LuaValueType.Nil,
+                VMSpecializationType.Bool => LuaValueType.Bool,
                 VMSpecializationType.Int => LuaValueType.Number,
                 VMSpecializationType.Double => LuaValueType.Number,
                 VMSpecializationType.String => LuaValueType.String,
