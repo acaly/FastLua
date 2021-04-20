@@ -7,40 +7,26 @@ using System.Text;
 
 namespace FastLua.VM
 {
-    internal sealed class StackSegment
+    internal ref struct StackFrameValues
     {
-        public TypedValue[] ValueStack;
-    }
+        public Span<TypedValue> Span;
 
-    internal unsafe ref struct StackFrame
-    {
-        //In order for the linked list to work. This also stores index of StackSegment.
-        public nint Head;
-        public Span<nint> Last; //Last StackFrame's Head field.
-        public Span<TypedValue> ValueFrame;
-        public int ValueFrameStartIndex;
-
-        public StackMetaData MetaData;
-
-        private static ref nint GetLastImpl(ref nint x) => ref x;
-        public static readonly delegate*<ref nint, ref StackFrame> GetLast =
-            (delegate*<ref nint, ref StackFrame>)(delegate*<ref nint, ref nint>)&GetLastImpl;
-
-        public TypedValue GetUpvalOU(int o, int index)
+        public ref TypedValue this[int index]
         {
-            return ((TypedValue[])ValueFrame[o].Object)[index];
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref Unsafe.Add(ref MemoryMarshal.GetReference(Span), index);
         }
 
-        public void SetUpvalOU(int o, int index, TypedValue uval)
+        public ref TypedValue GetUpvalue(int stackOffset, int index)
         {
-            ((TypedValue[])ValueFrame[o].Object)[index] = uval;
+            return ref ((TypedValue[])this[stackOffset].Object)[index];
         }
     }
 
-    public ref struct StackInfo
+    public struct StackInfo
     {
         internal Thread Thread;
-        internal StackFrame StackFrame;
+        internal int StackFrame;
 
         public void Write(int start, Span<TypedValue> values)
         {
@@ -96,205 +82,164 @@ namespace FastLua.VM
         public int VarargLength;
         public VMSpecializationType VarargType;
 
-        public bool OnSameSegment;
     }
 
-    internal struct SerializedStackFrame
+    internal struct StackFrame
     {
-        public int Head;
-        public ArraySegment<TypedValue> ValueFrame;
+        public int Segment;
+        public int Offset;
+        public int Length;
+        public int PC;
+        public bool ForceOnSameSegment;
+
         public StackMetaData MetaData;
     }
 
     internal sealed class StackManager
     {
-        private readonly List<StackSegment> _segments = new();
-        private readonly Stack<SerializedStackFrame> _serializedFrames = new();
+        private readonly List<TypedValue[]> _segments = new();
+        private FastList<StackFrame> _serializedFrames;
 
         public StackManager()
         {
-            _segments.Add(new()
-            {
-                ValueStack = new TypedValue[Options.StackSegmentSize],
-            });
+            _segments.Add(new TypedValue[Options.StackSegmentSize]);
+            _serializedFrames.Init(Options.InitialFrameCapacity);
         }
 
-        public StackFrame Allocate(int size)
+        public StackFrameValues GetValues(ref StackFrame frame)
         {
-            Debug.Assert(size < Options.MaxSingleFunctionStackSize);
-            var s = _segments[0];
-            return new StackFrame
+            return new()
             {
-                Head = 0,
-                Last = default,
-                ValueFrame = s.ValueStack.AsSpan()[0..size],
+                Span = _segments[frame.Segment].AsSpan().Slice(frame.Offset, frame.Length),
             };
         }
 
-        public StackFrame Allocate(Thread thread, ref StackFrame lastFrame, int size, bool onSameSeg)
+        public ref StackFrame Get(int index)
         {
+            return ref _serializedFrames[index];
+        }
+
+        public ref StackFrame AllocateFirst(int size)
+        {
+            Debug.Assert(_serializedFrames.Count == 0);
             Debug.Assert(size < Options.MaxSingleFunctionStackSize);
 
-            var s = _segments[(int)lastFrame.Head];
+            ref var ret = ref _serializedFrames.Add();
+            ret.Segment = 0;
+            ret.Offset = 0;
+            ret.Length = size;
+            ret.MetaData = default;
 
-            var newStart = lastFrame.ValueFrameStartIndex + thread.SigOffset;
+            return ref ret;
+        }
+
+        public ref StackFrame AllocateNext(Thread thread, ref StackFrame lastFrame,
+            int size, ref bool onSameSeg)
+        {
+            Debug.Assert(_serializedFrames.Count > 0);
+            Debug.Assert(Unsafe.AreSame(ref lastFrame, ref _serializedFrames.Last));
+            Debug.Assert(size < Options.MaxSingleFunctionStackSize);
+
+            ref var ret = ref _serializedFrames.Add();
+
+            var newHead = lastFrame.Segment;
+            var newStart = lastFrame.Offset + thread.SigOffset;
             var newSize = thread.SigTotalLength + size;
+            var s = _segments[newHead];
+            //newSize can be larget than MaxSingleFunctionStackSize. Is it desired?
 
-            var newHead = lastFrame.Head;
-            
-            if (s.ValueStack.Length < newStart + newSize)
+            if (s.Length >= newStart + newSize)
             {
-                if (onSameSeg)
+                //Case 1: Enough space. Just grow.
+                ret.Segment = newHead;
+                ret.Offset = newStart;
+                ret.Length = newSize;
+                ret.ForceOnSameSegment = onSameSeg;
+
+                onSameSeg = true;
+                return ref ret;
+            }
+
+            if (!onSameSeg)
+            {
+                //Case 2: Allocate the new frame on the next segment.
+
+                //Allocate a new segment if necessary.
+                if (++newHead == _segments.Count)
                 {
-                    //The most difficult path: new frame needs to be on the same segment, but current
-                    //segment does not have enough space. Need to relocate all existing frames
-                    //that requires OnSameSegment.
-                    //This should be very rare for any normal code.
-
-                    //Calculate total size required for all frames.
-                    //We assume that each frame actually only requires the space up to its sig offset.
-                    //This is ensured by the current calling convension.
-                    Span<nint> iter = lastFrame.Last;
-                    int offsetOnOldSeg = lastFrame.ValueFrameStartIndex;
-                    if (lastFrame.MetaData.OnSameSegment)
-                    {
-                        while (true)
-                        {
-                            unsafe
-                            {
-                                ref var f = ref StackFrame.GetLast(ref iter[0]);
-                                Debug.Assert((int)f.Head == newHead);
-                                iter = f.Last;
-                                if (!f.MetaData.OnSameSegment || iter.Length == 0)
-                                {
-                                    offsetOnOldSeg = f.ValueFrameStartIndex;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    newStart -= offsetOnOldSeg;
-                    var totalNewSize = newStart + newSize + Options.MaxSingleFunctionStackSize;
-                    totalNewSize = Math.Max(totalNewSize, Options.StackSegmentSize);
-
-                    //Allocate new segment.
-                    var newSegment = new StackSegment
-                    {
-                        ValueStack = new TypedValue[totalNewSize],
-                    };
-                    _segments[(int)newHead] = newSegment;
-                    s.ValueStack.CopyTo(newSegment.ValueStack.AsSpan());
-
-                    //Iterate and fix all frames.
-                    iter = lastFrame.Last;
-                    if (lastFrame.MetaData.OnSameSegment)
-                    {
-                        while (iter.Length > 0)
-                        {
-                            unsafe
-                            {
-                                ref var f = ref StackFrame.GetLast(ref iter[0]);
-                                f.ValueFrameStartIndex -= offsetOnOldSeg;
-                                f.ValueFrame = newSegment.ValueStack.AsSpan()
-                                    .Slice(f.ValueFrameStartIndex, f.ValueFrame.Length);
-
-                                if (!f.MetaData.OnSameSegment) break;
-                                iter = f.Last;
-                            }
-                        }
-                    }
-
-                    s = newSegment;
-                    //Fall through and allocate the new frame.
+                    _segments.Add(new TypedValue[Options.StackSegmentSize]);
                 }
-                else
-                {
-                    //Allocate new frame on a new segment.
-                    if (++newHead == _segments.Count)
-                    {
-                        _segments.Add(new()
-                        {
-                            ValueStack = new TypedValue[Options.StackSegmentSize],
-                        });
-                    }
-                    s = _segments[(int)newHead];
-                    var frame = s.ValueStack.AsSpan()[0..newSize];
 
-                    //Copy args from old frame.
-                    var argSize = thread.SigTotalLength;
-                    lastFrame.ValueFrame.Slice(thread.SigOffset, argSize).CopyTo(frame);
-                    return new StackFrame
-                    {
-                        Head = newHead,
-                        Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                        ValueFrame = frame,
-                        MetaData =
-                        {
-                            OnSameSegment = onSameSeg,
-                        },
-                    };
-                }
+                //Copy args from old frame.
+                var argSize = thread.SigTotalLength;
+                var lastFrameValues = _segments[lastFrame.Segment].AsSpan();
+                lastFrameValues = lastFrameValues.Slice(lastFrame.Offset, lastFrame.Length);
+                lastFrameValues = lastFrameValues.Slice(thread.SigOffset, argSize);
+                lastFrameValues.CopyTo(_segments[newHead].AsSpan()[0..newSize]);
+
+                ret.Segment = newHead;
+                ret.Offset = 0;
+                ret.Length = newSize;
+                ret.ForceOnSameSegment = false;
+
+                onSameSeg = false;
+                return ref ret;
             }
 
-            //Enough space. Just grow.
-            //Don't need to copy args. Use extend to allocate frame after the current one.
-            //In order to reduce overhead on bounds check, we can remove the manual check above
-            //and instead catch out-of-range exception from AsSpan().Slice().
-            return new StackFrame
-            {
-                Head = newHead,
-                Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                ValueFrameStartIndex = newStart,
-                ValueFrame = MemoryMarshal.CreateSpan(ref s.ValueStack[newStart], newSize),
-                MetaData =
-                {
-                    OnSameSegment = onSameSeg,
-                },
-            };
-        }
+            //Case 3: Lua stack relocation.
+            //New frame needs to be on the same segment, but current segment does not have
+            //enough space. Need to relocate all existing frames that requires OnSameSegment.
+            //This should be very rare for any normal code.
 
-        private SerializedStackFrame SerializeFrameInternal(ref StackFrame frame)
-        {
-            var seg = _segments[(int)frame.Head];
-            return new SerializedStackFrame
-            {
-                Head = (int)frame.Head,
-                ValueFrame = new(seg.ValueStack, frame.ValueFrameStartIndex, frame.ValueFrame.Length),
-                MetaData = frame.MetaData,
-            };
-        }
+            //Remove unused segments. We don't want to keep more than one large segment.
+            _segments.RemoveRange(newHead + 1, _segments.Count - newHead - 1);
 
-        public void SerializeAll(ref StackFrame lastFrame)
-        {
-            if (_serializedFrames.Count != 0)
+            //Find the range of frames to relocate.
+            var relocationBegin = _serializedFrames.Count - 1;
+            while (_serializedFrames[relocationBegin].ForceOnSameSegment)
             {
-                throw new InvalidOperationException();
+                Debug.Assert(relocationBegin > 0);
+                Debug.Assert(_serializedFrames[relocationBegin - 1].Segment == newHead);
+                relocationBegin -= 1;
             }
 
-            Span<nint> next;
-            do
+            //Calculate total size required for all relocated frames.
+            var minNewSize = lastFrame.Offset - _serializedFrames[relocationBegin].Offset;
+            minNewSize += thread.SigOffset + newSize;
+            var realNewSize = Options.StackSegmentSize * 2;
+            while (realNewSize < minNewSize)
             {
-                _serializedFrames.Push(SerializeFrameInternal(ref lastFrame));
-                next = lastFrame.Last;
-            } while (next.Length > 0);
+                realNewSize *= 2;
+            }
+
+            //Relocate.
+            var newSegment = new TypedValue[realNewSize];
+            var relocationOffset = _serializedFrames[relocationBegin].Offset;
+            _segments[newHead].AsSpan()[relocationOffset..]
+                .CopyTo(newSegment.AsSpan());
+            _segments[newHead] = s = newSegment;
+            for (int i = relocationBegin; i < _serializedFrames.Count; ++i)
+            {
+                ref var f = ref _serializedFrames[i];
+                f.Offset -= relocationOffset;
+            }
+            newStart -= relocationOffset;
+
+            //Confirm we have leave enough space.
+            Debug.Assert(s.Length < newStart + newSize);
+
+            //Use RecoverableException to restart all Lua frames. This is necessary
+            //to update the Span<TypedValue> on native C# stack.
+            //We can alternatively update all of them here, but that would require
+            //maintaining a linked list of Spans, which introduces overhead for each
+            //CALL/CALLC.
+            throw new RecoverableException();
         }
 
-        public bool DeserializeSingle(ref StackFrame lastFrame, out StackFrame frame)
+        public void Deallocate(ref StackFrame frame)
         {
-            if (!_serializedFrames.TryPop(out var s))
-            {
-                frame = default;
-                return false;
-            }
-            frame = new StackFrame()
-            {
-                Head = s.Head,
-                Last = MemoryMarshal.CreateSpan(ref lastFrame.Head, 1),
-                ValueFrame = s.ValueFrame.AsSpan(),
-                ValueFrameStartIndex = s.ValueFrame.Offset,
-                MetaData = s.MetaData,
-            };
-            return true;
+            Debug.Assert(Unsafe.AreSame(ref frame, ref _serializedFrames.Last));
+            _serializedFrames.RemoveLast();
         }
     }
 }

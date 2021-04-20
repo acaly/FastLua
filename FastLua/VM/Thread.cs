@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -23,12 +24,14 @@ namespace FastLua.VM
 
         internal int SigTotalLength => SigDesc.SigFLength + SigVLength;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ClearSigBlock()
         {
             SigVLength = 0;
             SigDesc = SignatureDesc.Null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetSigBlock(ref SignatureDesc desc, int pos)
         {
             //Keep VLength.
@@ -38,6 +41,7 @@ namespace FastLua.VM
 
         //Set the sig to contain only a vararg part.
         //This is always followed by an adjustment.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void SetSigBlockVararg(ref SignatureDesc desc, int pos, int length)
         {
             Debug.Assert(desc.SigFLength == 0);
@@ -48,6 +52,7 @@ namespace FastLua.VM
 
         //Adjust sig block. This operation handles sig block generated inside the same function
         //so it should never fail (or it's a program error), and we don't really need to check.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ResizeSigBlockLeft(ref SignatureDesc desc, int pos)
         {
             //0 is the Null signature, which is different from Empty. Null can only be created
@@ -71,13 +76,13 @@ namespace FastLua.VM
 
         //Adjust the sig block with given type without changing its starting position.
         //If varargStorage is not null, copy the vararg part to the separate list.
-        internal bool TryAdjustSigBlockRight(ref StackFrame stack, ref SignatureDesc desc,
-            List<TypedValue> varargStorage, out int varargCount)
+        internal bool TryAdjustSigBlockRight(ref StackFrame stack, ref StackFrameValues values,
+            ref SignatureDesc desc, List<TypedValue> varargStorage, out int varargCount)
         {
             if (desc.SigTypeId == SigDesc.SigTypeId)
             {
                 //Same type.
-                WriteVararg(ref stack, varargStorage, out varargCount);
+                WriteVararg(ref values, varargStorage, out varargCount);
                 return true;
             }
             if (!SigDesc.SigType.IsCompatibleWith(desc.SigType))
@@ -100,7 +105,7 @@ namespace FastLua.VM
             //Fill nils if necessary.
             if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
             {
-                stack.ValueFrame.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
+                values.Span.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
                 SigVLength = 0;
             }
             else
@@ -111,11 +116,11 @@ namespace FastLua.VM
 
             SigDesc = desc;
 
-            WriteVararg(ref stack, varargStorage, out varargCount);
+            WriteVararg(ref values, varargStorage, out varargCount);
             return true;
         }
 
-        private void WriteVararg(ref StackFrame stack, List<TypedValue> storage, out int count)
+        private void WriteVararg(ref StackFrameValues values, List<TypedValue> storage, out int count)
         {
             if (storage is null || !SigDesc.SigType.Vararg.HasValue)
             {
@@ -128,16 +133,17 @@ namespace FastLua.VM
             count = SigVLength;
             for (int i = 0; i < count; ++i)
             {
-                storage.Add(stack.ValueFrame[start + i]);
+                storage.Add(values[start + i]);
             }
         }
 
         public StackInfo AllocateCSharpStack(int size)
         {
+            Stack.AllocateFirst(size);
             return new StackInfo
             {
                 Thread = this,
-                StackFrame = Stack.Allocate(size),
+                StackFrame = 0,
             };
         }
     }

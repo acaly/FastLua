@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -13,6 +14,12 @@ namespace FastLua.VM
     {
         private T[] _data;
         private int _count;
+
+        public int Count
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _count;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureSpace(int count)
@@ -48,6 +55,7 @@ namespace FastLua.VM
             _data = new T[capacity];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T Add()
         {
             EnsureSpace();
@@ -62,15 +70,35 @@ namespace FastLua.VM
             return new(_data, offset, count);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveLast()
         {
             _count -= 1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveLast(int index)
         {
             Debug.Assert(_count == index + 1 && index >= 0);
             _count -= 1;
+        }
+
+        public ref T Last
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref _data[_count - 1];
+        }
+
+        public ref T this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref _data[index];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T UnsafeGet(int index)
+        {
+            return ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(_data), index);
         }
     }
 }

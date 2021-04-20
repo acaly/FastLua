@@ -12,13 +12,34 @@ namespace FastLua.VM
 {
     public partial class LuaInterpreter
     {
-        public static void Execute(Thread thread, LClosure closure, ref StackInfo stack, List<TypedValue> ret)
+        public static void Execute(Thread thread, LClosure closure, StackInfo stackInfo, List<TypedValue> ret)
         {
-            Execute(thread, closure, ref stack.StackFrame);
+            //C#-Lua boundary: before.
+
+            ref var stack = ref thread.Stack.Get(stackInfo.StackFrame);
+            var values = thread.Stack.GetValues(ref stack);
+
+            try
+            {
+                Execute(thread, closure, ref stack);
+            }
+            catch (RecoverableException)
+            {
+                //TODO recover
+                throw new NotImplementedException();
+            }
+            catch (OverflowException)
+            {
+                //TODO check whether the last frame is Lua frame and currently executing
+                //an int instruction. If so, deoptimize the function and recover.
+                throw;
+            }
+
+            //C#-Lua boundary: after.
 
             ret.Clear();
             var desc = StackSignature.EmptyV.GetDesc();
-            var adjusted = thread.TryAdjustSigBlockRight(ref stack.StackFrame, ref desc, ret, out _);
+            var adjusted = thread.TryAdjustSigBlockRight(ref stack, ref values, ref desc, ret, out _);
             Debug.Assert(adjusted);
         }
 
@@ -28,20 +49,33 @@ namespace FastLua.VM
             InterpreterLoop(0, thread, closure, ref stack, onSameSeg: true);
         }
 
-        private static void InterpreterLoop(int startPc, Thread thread, LClosure closure, ref StackFrame lastFrame,
-            bool onSameSeg)
+        private static void JumpToFallback(Thread thread, ref StackFrame stack)
         {
-            //This allocates the new frame's stack, which may overlap with the current (to pass args)
-            //TODO seems a lot of work here in Allocate. Should try to simplify.
-            //Especially the sig check.
+            throw new NotImplementedException();
+        }
+
+        private static void InterpreterLoop(int startPc, Thread thread, LClosure closure,
+            ref StackFrame lastFrame, bool onSameSeg)
+        {
+            //TODO recover execution
+            //TODO in recovery, onSameSeg should be set depending on whether lastFrame's Segment
+            //equals this frame's Segment.
+
             var proto = closure.Proto;
-            var stack = thread.Stack.Allocate(thread, ref lastFrame, proto.StackSize, onSameSeg);
+
+            //Note that this updates onSameSeg (the value is used when returning values to caller).
+            ref var stack = ref thread.Stack.AllocateNext(thread, ref lastFrame, proto.StackSize, ref onSameSeg);
+            var values = thread.Stack.GetValues(ref stack);
+
+            //TODO eliminate this
             var parentStackOffset = thread.SigOffset;
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
-            int varargStart = thread.VarargTotalLength;
-            if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.ParameterSig, thread.VarargStack, out var varargLength))
+            stack.MetaData.VarargType = VMSpecializationType.Polymorphic;
+            stack.MetaData.VarargStart = thread.VarargTotalLength;
+            if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref proto.ParameterSig, thread.VarargStack,
+                out stack.MetaData.VarargLength))
             {
                 //Cannot adjust argument list. Adjust the argument list to unspecialized form and call fallback.
                 thread.SigDesc.SigType.AdjustStackToUnspecialized();
@@ -53,18 +87,11 @@ namespace FastLua.VM
             Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffset - proto.UpvalRegionOffset);
             for (int i = 0; i < closure.UpvalLists.Length; ++i)
             {
-                stack.ValueFrame[proto.UpvalRegionOffset + i].Object = closure.UpvalLists[i];
+                values[proto.UpvalRegionOffset + i].Object = closure.UpvalLists[i];
                 //We could also set types in value frame, but this region should never be accessed as other types.
                 //This is also to be consistent for optimized functions that compresses the stack.
             }
 
-            stack.MetaData = new StackMetaData
-            {
-                VarargStart = varargStart,
-                VarargType = VMSpecializationType.Polymorphic,
-                VarargLength = varargLength,
-                OnSameSegment = stack.MetaData.OnSameSegment,
-            };
             thread.ClearSigBlock();
             thread.SigOffset = proto.SigRegionOffset;
 
@@ -82,7 +109,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) < 0)
+                    if (CompareValue(values[a], values[b]) < 0)
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -92,7 +119,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) <= 0)
+                    if (CompareValue(values[a], values[b]) <= 0)
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -102,7 +129,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) < 0))
+                    if (!(CompareValue(values[a], values[b]) < 0))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -112,7 +139,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) <= 0))
+                    if (!(CompareValue(values[a], values[b]) <= 0))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -122,7 +149,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) == 0)
+                    if (CompareValue(values[a], values[b]) == 0)
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -133,7 +160,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     //!(cmp == 0) will return true for NaN comparison.
-                    if (!(CompareValue(stack.ValueFrame[a], stack.ValueFrame[b]) == 0))
+                    if (!(CompareValue(values[a], values[b]) == 0))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -143,9 +170,9 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (stack.ValueFrame[b].ToBoolVal())
+                    if (values[b].ToBoolVal())
                     {
-                        stack.ValueFrame[a] = stack.ValueFrame[b];
+                        values[a] = values[b];
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
                     lastWrite = a;
@@ -155,9 +182,9 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (!stack.ValueFrame[b].ToBoolVal())
+                    if (!values[b].ToBoolVal())
                     {
-                        stack.ValueFrame[a] = stack.ValueFrame[b];
+                        values[a] = values[b];
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
                     lastWrite = a;
@@ -167,7 +194,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = stack.ValueFrame[b];
+                    values[a] = values[b];
                     lastWrite = a;
                     break;
                 }
@@ -175,7 +202,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = stack.ValueFrame[b].ToBoolVal() ? TypedValue.False : TypedValue.True;
+                    values[a] = values[b].ToBoolVal() ? TypedValue.False : TypedValue.True;
                     lastWrite = a;
                     break;
                 }
@@ -183,16 +210,16 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    switch (stack.ValueFrame[b].Type)
+                    switch (values[b].Type)
                     {
                     case VMSpecializationType.Int:
-                        stack.ValueFrame[a] = TypedValue.MakeInt(-stack.ValueFrame[b].IntVal);
+                        values[a] = TypedValue.MakeInt(-values[b].IntVal);
                         break;
                     case VMSpecializationType.Double:
-                        stack.ValueFrame[a] = TypedValue.MakeDouble(-stack.ValueFrame[b].DoubleVal);
+                        values[a] = TypedValue.MakeDouble(-values[b].DoubleVal);
                         break;
                     default:
-                        stack.ValueFrame[a] = UnaryNeg(stack.ValueFrame[b]);
+                        values[a] = UnaryNeg(values[b]);
                         break;
                     }
                     lastWrite = a;
@@ -202,7 +229,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = UnaryLen(stack.ValueFrame[b]);
+                    values[a] = UnaryLen(values[b]);
                     lastWrite = a;
                     break;
                 }
@@ -211,7 +238,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Add(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Add(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -220,7 +247,7 @@ namespace FastLua.VM
                     var a = (byte)(ii >> 16);
                     var b = (byte)(ii >> 8);
                     var c = (byte)ii;
-                    stack.ValueFrame[a].Number = stack.ValueFrame[b].Number + stack.ValueFrame[c].Number;
+                    values[a].Number = values[b].Number + values[c].Number;
                     //lastWrite = a; //+<5% overhead
 
                     //5-10% faster.
@@ -234,7 +261,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Sub(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Sub(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -243,7 +270,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Mul(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Mul(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -252,7 +279,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Div(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Div(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -261,7 +288,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Mod(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Mod(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -270,7 +297,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = Pow(stack.ValueFrame[b], stack.ValueFrame[c]);
+                    values[a] = Pow(values[b], values[c]);
                     lastWrite = a;
                     break;
                 }
@@ -284,9 +311,9 @@ namespace FastLua.VM
                     sb.Clear();
                     for (int i = b; i < c; ++i)
                     {
-                        WriteString(sb, stack.ValueFrame[i]);
+                        WriteString(sb, values[i]);
                     }
-                    stack.ValueFrame[a] = TypedValue.MakeString(sb.ToString());
+                    values[a] = TypedValue.MakeString(sb.ToString());
                     lastWrite = a;
                     break;
                 }
@@ -294,7 +321,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a] = proto.Constants[b];
+                    values[a] = proto.Constants[b];
                     lastWrite = a;
                     break;
                 }
@@ -302,7 +329,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a].Number = proto.Constants[b].Number;
+                    values[a].Number = proto.Constants[b].Number;
                     lastWrite = a;
                     break;
                 }
@@ -311,7 +338,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.ValueFrame[a] = stack.GetUpvalOU(b, c);
+                    values[a] = values.GetUpvalue(b, c);
                     lastWrite = a;
                     break;
                 }
@@ -320,14 +347,14 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    stack.SetUpvalOU(b, c, stack.ValueFrame[a]);
+                    values.GetUpvalue(b, c) = values[a];
                     break;
                 }
                 case Opcodes.UNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    stack.ValueFrame[a].Object = new TypedValue[b];
+                    values[a].Object = new TypedValue[b];
                     //Type not set.
                     break;
                 }
@@ -344,16 +371,16 @@ namespace FastLua.VM
                     };
                     for (int i = 0; i < upvalLists.Length; ++i)
                     {
-                        nclosure.UpvalLists[i] = (TypedValue[])stack.ValueFrame[upvalLists[i]].Object;
+                        nclosure.UpvalLists[i] = (TypedValue[])values[upvalLists[i]].Object;
                     }
-                    stack.ValueFrame[a] = TypedValue.MakeLClosure(nclosure);
+                    values[a] = TypedValue.MakeLClosure(nclosure);
                     lastWrite = a;
                     break;
                 }
                 case Opcodes.TNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
-                    stack.ValueFrame[a] = TypedValue.MakeTable(new Table());
+                    values[a] = TypedValue.MakeTable(new Table());
                     lastWrite = a;
                     break;
                 }
@@ -362,13 +389,13 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    if (stack.ValueFrame[b].Object is Table t)
+                    if (values[b].Object is Table t)
                     {
-                        t.Get(stack.ValueFrame[c], out stack.ValueFrame[a]);
+                        t.Get(values[c], out values[a]);
                     }
                     else
                     {
-                        GetTable(ref stack.ValueFrame[b], ref stack.ValueFrame[c], ref stack.ValueFrame[a]);
+                        GetTable(ref values[b], ref values[c], ref values[a]);
                     }
                     lastWrite = a;
                     break;
@@ -378,13 +405,13 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    if (stack.ValueFrame[b].Object is Table t)
+                    if (values[b].Object is Table t)
                     {
-                        t.Set(stack.ValueFrame[c], stack.ValueFrame[a]);
+                        t.Set(values[c], values[a]);
                     }
                     else
                     {
-                        SetTable(ref stack.ValueFrame[b], ref stack.ValueFrame[c], ref stack.ValueFrame[a]);
+                        SetTable(ref values[b], ref values[c], ref values[a]);
                     }
                     break;
                 }
@@ -393,9 +420,9 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
-                    var t = (Table)stack.ValueFrame[a].Object;
+                    var t = (Table)values[a].Object;
                     ref var sig = ref proto.SigDesc[c];
-                    var span = stack.ValueFrame.Slice(b, sig.SigFLength + thread.SigVLength);
+                    var span = values.Span.Slice(b, sig.SigFLength + thread.SigVLength);
                     t.SetSequence(span, ref sig);
                     thread.ClearSigBlock();
                     break;
@@ -404,6 +431,8 @@ namespace FastLua.VM
                 case Opcodes.CALLC:
                 {
                     //Similar logic is also used in FORG. Be consistent whenever CALL/CALLC is updated.
+
+                    stack.PC = pc;
 
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -416,7 +445,7 @@ namespace FastLua.VM
                     var sigStart = Math.Max(lastWrite + 1 - argSig.SigFLength, proto.SigRegionOffset);
                     thread.ResizeSigBlockLeft(ref argSig, sigStart);
 
-                    var newFuncP = stack.ValueFrame[a].Object;
+                    var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
                     {
                         ref var retSig = ref proto.SigDesc[c];
@@ -424,7 +453,7 @@ namespace FastLua.VM
                         InterpreterLoop(0, thread, lc, ref stack, callOnSameSeg);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref retSig, null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref retSig, null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;
@@ -432,8 +461,21 @@ namespace FastLua.VM
                     }
                     else
                     {
+                        //Lua-C# boundary, before.
+
                         //native closure/native func
                         throw new NotImplementedException();
+
+                        //Lua-C# boundary, after.
+
+                        //TODO check segment
+                        if (Unsafe.AreSame(ref values[0], ref thread.Stack.GetValues(ref stack).Span[0]))
+                        {
+                            pc += 1;
+                            stack.PC = pc;
+                            //TODO store pc
+                            throw new RecoverableException();
+                        }
                     }
 
                     if ((Opcodes)(ii >> 24) == Opcodes.CALLC)
@@ -451,13 +493,13 @@ namespace FastLua.VM
 
                     for (int i = 0; i < stack.MetaData.VarargLength; ++i)
                     {
-                        stack.ValueFrame[i + b] = thread.VarargStack[i + stack.MetaData.VarargStart];
+                        values[i + b] = thread.VarargStack[i + stack.MetaData.VarargStart];
                     }
 
                     //Overwrite sig as a vararg.
                     thread.SetSigBlockVararg(ref proto.VarargSig, b, stack.MetaData.VarargLength);
                     //Then adjust to requested (this is needed in assignment statement).
-                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref stack,
+                    var adjustmentSuccess = thread.TryAdjustSigBlockRight(ref stack, ref values,
                         ref proto.SigDesc[a], null, out _);
                     Debug.Assert(adjustmentSuccess);
 
@@ -474,11 +516,11 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     if (stack.MetaData.VarargLength == 0)
                     {
-                        stack.ValueFrame[a] = TypedValue.Nil;
+                        values[a] = TypedValue.Nil;
                     }
                     else
                     {
-                        stack.ValueFrame[a] = thread.VarargStack[stack.MetaData.VarargStart];
+                        values[a] = thread.VarargStack[stack.MetaData.VarargStart];
                     }
                     break;
                 }
@@ -490,13 +532,13 @@ namespace FastLua.VM
                 case Opcodes.FORI:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
-                    ForceConvDouble(ref stack.ValueFrame[a]);
-                    ForceConvDouble(ref stack.ValueFrame[a + 1]);
-                    ForceConvDouble(ref stack.ValueFrame[a + 2]);
+                    ForceConvDouble(ref values[a]);
+                    ForceConvDouble(ref values[a + 1]);
+                    ForceConvDouble(ref values[a + 2]);
                     //Treat the values as double.
-                    ref var n1 = ref stack.ValueFrame[a].Number;
-                    ref var n2 = ref stack.ValueFrame[a + 1].Number;
-                    ref var n3 = ref stack.ValueFrame[a + 2].Number;
+                    ref var n1 = ref values[a].Number;
+                    ref var n2 = ref values[a + 1].Number;
+                    ref var n3 = ref values[a + 2].Number;
                     if (n3 > 0)
                     {
                         if (!(n1 <= n2))
@@ -517,9 +559,9 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     //Treat the values as double.
-                    ref var n1 = ref stack.ValueFrame[a].Number;
-                    ref var n2 = ref stack.ValueFrame[a + 1].Number;
-                    ref var n3 = ref stack.ValueFrame[a + 2].Number;
+                    ref var n1 = ref values[a].Number;
+                    ref var n2 = ref values[a + 1].Number;
+                    ref var n3 = ref values[a + 2].Number;
                     n1 += n3;
                     if (n3 > 0)
                     {
@@ -541,23 +583,25 @@ namespace FastLua.VM
                 {
                     //Similar logic is also used in CALL/CALLC. Be consistent whenever this is updated.
 
+                    stack.PC = pc;
+
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
 
                     //FORG always call with Polymorphic_2 arguments.
-                    stack.ValueFrame[a + 3] = stack.ValueFrame[a + 1]; //s
-                    stack.ValueFrame[a + 4] = stack.ValueFrame[a + 2]; //var
+                    values[a + 3] = values[a + 1]; //s
+                    values[a + 4] = values[a + 2]; //var
                     thread.SetSigBlock(ref proto.SigDesc[(int)WellKnownStackSignature.Polymorphic_2], a + 3);
 
-                    var newFuncP = stack.ValueFrame[a].Object;
+                    var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
                     {
                         //FORG: we know how many values we need, so we don't need the caller to be on same seg.
                         InterpreterLoop(0, thread, lc, ref stack, onSameSeg: false);
 
                         //Adjust return values (without moving additional to vararg list).
-                        if (!thread.TryAdjustSigBlockRight(ref stack, ref proto.SigDesc[b], null, out _))
+                        if (!thread.TryAdjustSigBlockRight(ref stack, ref values, ref proto.SigDesc[b], null, out _))
                         {
                             JumpToFallback(thread, ref stack);
                             break;
@@ -565,17 +609,30 @@ namespace FastLua.VM
                     }
                     else
                     {
+                        //Lua-C# boundary, before.
+
                         //native closure/native func
                         throw new NotImplementedException();
+
+                        //Lua-C# boundary, after.
+
+                        //TODO check segment
+                        if (Unsafe.AreSame(ref values[0], ref thread.Stack.GetValues(ref stack).Span[0]))
+                        {
+                            pc += 1;
+                            stack.PC = pc;
+                            //TODO store pc
+                            throw new RecoverableException();
+                        }
                     }
                     thread.ClearSigBlock();
 
                     //For-loop related logic.
-                    if (stack.ValueFrame[a + 3].Type == VMSpecializationType.Nil)
+                    if (values[a + 3].Type == VMSpecializationType.Nil)
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
-                    stack.ValueFrame[a + 2] = stack.ValueFrame[a + 3]; //var = var_1
+                    values[a + 2] = values[a + 3]; //var = var_1
 
                     break;
                 }
@@ -604,38 +661,24 @@ namespace FastLua.VM
                     //Then return.
                     Span<TypedValue> retSpan;
                     var l = thread.SigTotalLength;
-                    if (stack.Last.Length == 0)
+
+                    if (onSameSeg)
                     {
-                        //This is the first frame. Simply copy to the start of this frame.
-                        retSpan = stack.ValueFrame;
+                        //The last one shares the same stack segment. Copy to this frame's start.
+                        retSpan = values.Span;
                     }
                     else
                     {
-                        unsafe
-                        {
-                            ref var lastStack = ref StackFrame.GetLast(ref stack.Last[0]);
-                            //lastStack.ReplaceSigBlock(ref stack.MetaData);
-
-                            if (stack.Last[0] == stack.Head)
-                            {
-                                //The last one shares the same stack segment. Copy to this frame's start.
-                                retSpan = stack.ValueFrame;
-                            }
-                            else
-                            {
-                                //The last one is on a previous stack. Find the location using last frame's data.
-                                retSpan = lastStack.ValueFrame[thread.SigOffset..];
-                                l = Math.Min(l, retSpan.Length);
-                            }
-                        }
+                        //The last one is on a previous stack. Find the location using last frame's data.
+                        retSpan = thread.Stack.GetValues(ref lastFrame).Span[thread.SigOffset..];
+                        l = Math.Min(l, retSpan.Length);
                     }
                     for (int i = 0; i < l; ++i)
                     {
-                        //We may copy from the range outside this current frame. Use unsafe.
+                        //The index operator used below has no range check, because we may copy from the
+                        //range outside this current frame.
                         //The onSameSegment mechanism ensures this range is valid.
-
-                        //retSpan[i] = stack.ValueFrame[thread.SigOffset + i];
-                        retSpan[i] = Unsafe.Add(ref MemoryMarshal.GetReference(stack.ValueFrame), thread.SigOffset + i);
+                        retSpan[i] = values[thread.SigOffset + i];
                     }
                     goto loopEnd;
                 }
@@ -643,22 +686,18 @@ namespace FastLua.VM
             }
         loopEnd:
             //Clear object stack to avoid memory leak.
-            if (stack.Head == lastFrame.Head)
+            if (onSameSeg)
             {
                 //Shared.
                 var clearStart = thread.SigTotalLength;
-                stack.ValueFrame.Slice(clearStart).Clear();
+                values.Span[clearStart..].Clear();
             }
             else
             {
-                stack.ValueFrame.Clear();
+                values.Span.Clear();
             }
+            thread.Stack.Deallocate(ref stack);
             thread.SigOffset = parentStackOffset;
-        }
-
-        private static void JumpToFallback(Thread thread, ref StackFrame stack)
-        {
-            throw new NotImplementedException();
         }
     }
 }

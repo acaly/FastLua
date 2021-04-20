@@ -49,7 +49,7 @@ namespace FastLuaTest
 
             //TODO use stack.Read
             var ret = new List<TypedValue>();
-            LuaInterpreter.Execute(thread, closure, ref stack, ret);
+            LuaInterpreter.Execute(thread, closure, stack, ret);
             var copyRetCount = Math.Min(ret.Count, results.Length);
             for (int i = 0; i < copyRetCount; ++i)
             {

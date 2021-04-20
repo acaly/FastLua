@@ -108,7 +108,7 @@ end
             var closure = codeGen.Compile(ast, null);
 
             var thread = new Thread();
-            var stack = thread.Stack.Allocate(1);
+            var stack = thread.Stack.AllocateFirst(1);
 
             //var clock = Stopwatch.StartNew();
             //for (int i = 0; i < 6000000; ++i)
@@ -211,7 +211,7 @@ end
             };
             var thread = new Thread();
             var clock = Stopwatch.StartNew();
-            var stack = thread.Stack.Allocate(1);
+            var stack = thread.Stack.AllocateFirst(1);
             for (int i = 0; i < 10000000; ++i)
             {
                 thread.ClearSigBlock();

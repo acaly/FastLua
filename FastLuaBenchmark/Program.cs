@@ -59,7 +59,7 @@ namespace FastLuaBenchmark
         {
             var stack = _fastLuaThread.AllocateCSharpStack(1);
             stack.Write(0, default);
-            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, ref stack, _fastLuaRetList);
+            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, stack, _fastLuaRetList);
             return _fastLuaRetList[0].NumberVal;
         }
 
