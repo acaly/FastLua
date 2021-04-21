@@ -7,17 +7,22 @@ using System.Text;
 
 namespace FastLua.VM
 {
-    internal ref struct StackFrameValues
+    internal readonly ref struct StackFrameValues
     {
-        public Span<TypedValue> Span;
+        public readonly Span<TypedValue> Span;
 
-        public ref TypedValue this[int index]
+        public StackFrameValues(Span<TypedValue> span)
+        {
+            Span = span;
+        }
+
+        public readonly ref TypedValue this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref Unsafe.Add(ref MemoryMarshal.GetReference(Span), index);
         }
 
-        public ref TypedValue GetUpvalue(int stackOffset, int index)
+        public readonly ref TypedValue GetUpvalue(int stackOffset, int index)
         {
             return ref ((TypedValue[])this[stackOffset].Object)[index];
         }
@@ -58,6 +63,7 @@ namespace FastLua.VM
         }
     }
 
+    [Obsolete("Use StackSignatureState")]
     internal struct SignatureDesc
     {
         public ulong SigTypeId;

@@ -30,7 +30,9 @@ namespace FastLua.VM
 
         public int AddUnspecialized()
         {
-            return Math.Max(_obj++, _num++);
+            var ret = Length;
+            _obj = _num = ret + 1;
+            return ret;
         }
 
         public int Length => Math.Max(_obj, _num);

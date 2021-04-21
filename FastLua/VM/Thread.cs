@@ -15,12 +15,6 @@ namespace FastLua.VM
         internal List<TypedValue> VarargStack = new();
         internal int VarargTotalLength = 0;
 
-        internal SignatureDesc SigDesc;
-
-        internal int SigOffset; //Start of sig block.
-        internal int SigVLength; //Length of vararg part.
-        internal int SigTotalLength => SigDesc.SigFLength + SigVLength;
-
         public Thread()
         {
             _segments.Add(new TypedValue[Options.StackSegmentSize]);
@@ -29,151 +23,69 @@ namespace FastLua.VM
 
         //Signature region.
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ClearSigBlock()
-        {
-            SigVLength = 0;
-            SigDesc = SignatureDesc.Null;
-        }
+        ////Adjust sig block. This operation handles sig block generated inside the same function
+        ////so it should never fail (or it's a program error), and we don't really need to check.
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal int ResizeSigBlockLeft(in SignatureDesc desc, int pos)
+        //{
+        //    if (SigDesc.SigTypeId == (ulong)WellKnownStackSignature.Null)
+        //    {
+        //        //New sig block at given place.
+        //        SigDesc = desc;
+        //        return SigOffset = pos;
+        //    }
+        //    else
+        //    {
+        //        Debug.Assert(desc.SigFLength >= SigDesc.SigFLength);
+        //
+        //        //Extend to left.
+        //        SigDesc = desc;
+        //        return SigOffset -= desc.SigFLength - SigDesc.SigFLength;
+        //    }
+        //    //Don't clear v length.
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetSigBlock(in SignatureDesc desc, int pos)
-        {
-            //Keep VLength.
-            SigOffset = pos;
-            SigDesc = desc;
-        }
-
-        //Set the sig to contain only a vararg part.
-        //This is always followed by an adjustment.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void SetSigBlockVararg(in SignatureDesc desc, int pos, int length)
-        {
-            Debug.Assert(desc.SigFLength == 0);
-            SigOffset = pos;
-            SigDesc = desc;
-            SigVLength = length;
-        }
-
-        //Adjust sig block. This operation handles sig block generated inside the same function
-        //so it should never fail (or it's a program error), and we don't really need to check.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int ResizeSigBlockLeft(in SignatureDesc desc, int pos)
-        {
-            if (SigDesc.SigTypeId == (ulong)WellKnownStackSignature.Null)
-            {
-                //New sig block at given place.
-                SigDesc = desc;
-                return SigOffset = pos;
-            }
-            else
-            {
-                Debug.Assert(desc.SigFLength >= SigDesc.SigFLength);
-
-                //Extend to left.
-                SigDesc = desc;
-                return SigOffset -= desc.SigFLength - SigDesc.SigFLength;
-            }
-            //Don't clear v length.
-        }
-
-        //Adjust the sig block with given type without changing its starting position.
-        //If varargStorage is not null, copy the vararg part to the separate list.
-        internal bool TryAdjustSigBlockRight(ref StackFrameValues values, in SignatureDesc desc)
-        {
-            if (desc.SigTypeId == SigDesc.SigTypeId)
-            {
-                //Same type.
-                return true;
-            }
-            if (!SigDesc.SigType.IsCompatibleWith(desc.SigType))
-            {
-                //Not compatible.
-                if (!desc.SigType.IsUnspecialized)
-                {
-                    //Target is not unspecialized. We can do nothing here.
-                    return false;
-                }
-
-                //Target is unspecialized. We can make them compatible.
-                Debug.Assert(!SigDesc.SigType.IsUnspecialized);
-                SigDesc.SigType.AdjustStackToUnspecialized();
-            }
-
-            var diff = desc.SigFLength - SigDesc.SigFLength;
-
-            //Fill nils if necessary.
-            if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
-            {
-                values.Span.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
-                SigVLength = 0;
-            }
-            else
-            {
-                //Update variant part length for WriteVararg to work properly.
-                SigVLength -= desc.SigFLength - SigDesc.SigFLength;
-            }
-
-            SigDesc = desc;
-
-            return true;
-        }
-
-        internal void WriteVararg(ref StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
-        {
-            if (!SigDesc.SigType.Vararg.HasValue)
-            {
-                DiscardVararg(ref values);
-                return;
-            }
-            Debug.Assert(SigDesc.HasV);
-
-            varargInfo.VarargStart = storage.Count;
-            varargInfo.VarargLength = SigVLength;
-
-            var start = SigOffset + SigDesc.SigFLength;
-            for (int i = 0; i < varargInfo.VarargLength; ++i)
-            {
-                storage.Add(values[start + i]);
-                values[start + i].Object = null;
-            }
-        }
-
-        internal int WriteVararg(ref StackFrameValues values, Span<TypedValue> storage)
-        {
-            if (!SigDesc.SigType.Vararg.HasValue)
-            {
-                DiscardVararg(ref values);
-                return 0;
-            }
-            Debug.Assert(SigDesc.HasV);
-
-            var start = SigOffset + SigDesc.SigFLength;
-            var len = Math.Min(SigVLength, storage.Length);
-            for (int i = 0; i < len; ++i)
-            {
-                storage[i] = values[start + i];
-                values[start + i].Object = null;
-            }
-            for (int i = len; i < SigVLength; ++i)
-            {
-                values[start + i].Object = null;
-            }
-
-            return len;
-        }
-
-        internal void DiscardVararg(ref StackFrameValues values)
-        {
-            if (SigVLength > 0)
-            {
-                var start = SigOffset + SigDesc.SigFLength;
-                for (int i = 0; i < SigVLength; ++i)
-                {
-                    values[start + i].Object = null;
-                }
-            }
-        }
+        ////Adjust the sig block with given type without changing its starting position.
+        ////Vararg should be converted to unspecialized type and left at the end.
+        //internal bool TryAdjustSigBlockRight(ref StackFrameValues values, in SignatureDesc desc)
+        //{
+        //    if (desc.SigTypeId == SigDesc.SigTypeId)
+        //    {
+        //        //Same type.
+        //        return true;
+        //    }
+        //    if (!SigDesc.SigType.IsCompatibleWith(desc.SigType))
+        //    {
+        //        //Not compatible.
+        //        if (!desc.SigType.IsUnspecialized)
+        //        {
+        //            //Target is not unspecialized. We can do nothing here.
+        //            return false;
+        //        }
+        //
+        //        //Target is unspecialized. We can make them compatible.
+        //        Debug.Assert(!SigDesc.SigType.IsUnspecialized);
+        //        SigDesc.SigType.AdjustStackToUnspecialized();
+        //    }
+        //
+        //    var diff = desc.SigFLength - SigDesc.SigFLength;
+        //
+        //    //Fill nils if necessary.
+        //    if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
+        //    {
+        //        values.Span.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
+        //        SigVLength = 0;
+        //    }
+        //    else
+        //    {
+        //        //Update variant part length for WriteVararg to work properly.
+        //        SigVLength -= desc.SigFLength - SigDesc.SigFLength;
+        //    }
+        //
+        //    SigDesc = desc;
+        //
+        //    return true;
+        //}
 
         //Stack management.
 
@@ -195,10 +107,7 @@ namespace FastLua.VM
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal StackFrameValues GetFrameValues(ref StackFrame frame)
         {
-            return new()
-            {
-                Span = new(_segments[frame.Segment], frame.Offset, frame.Length),
-            };
+            return new(new(_segments[frame.Segment], frame.Offset, frame.Length));
         }
 
         internal ref StackFrame GetFrame(int index)
@@ -222,21 +131,22 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Span<StackFrame> AllocateNextFrame(ref StackFrame lastFrame, int size, bool onSameSeg)
+        internal Span<StackFrame> AllocateNextFrame(ref StackFrame lastFrame, in StackSignatureState sig,
+            int size, bool onSameSeg)
         {
             Debug.Assert(_serializedFrames.Count > 0);
             Debug.Assert(Unsafe.AreSame(ref lastFrame, ref _serializedFrames.Last));
             Debug.Assert(size < Options.MaxSingleFunctionStackSize);
 
             var newHead = lastFrame.Segment;
-            var newStart = lastFrame.Offset + SigOffset;
-            var newSize = SigTotalLength + size;
+            var newStart = lastFrame.Offset + sig.Offset;
+            var newSize = sig.TotalLength + size;
             var s = _segments[newHead];
             //newSize can be larget than MaxSingleFunctionStackSize. Is it desired?
 
             if (s.Length < newStart + newSize)
             {
-                return AllocateNextFrameSlow(ref lastFrame, size, onSameSeg);
+                return AllocateNextFrameSlow(ref lastFrame, in sig, size, onSameSeg);
             }
 
             ref var ret = ref _serializedFrames.Add();
@@ -258,13 +168,14 @@ namespace FastLua.VM
             return new() { Thread = this, StackFrame = _serializedFrames.Count - 1 };
         }
 
-        private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, int size, bool onSameSeg)
+        private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, in StackSignatureState sig,
+            int size, bool onSameSeg)
         {
             ref var ret = ref _serializedFrames.Add();
 
             var newHead = lastFrame.Segment;
-            var newStart = lastFrame.Offset + SigOffset;
-            var newSize = SigTotalLength + size;
+            var newStart = lastFrame.Offset + sig.Offset;
+            var newSize = sig.TotalLength + size;
             var s = _segments[newHead];
 
             if (!onSameSeg)
@@ -278,10 +189,10 @@ namespace FastLua.VM
                 }
 
                 //Copy args from old frame.
-                var argSize = SigTotalLength;
+                var argSize = sig.TotalLength;
                 var lastFrameValues = _segments[lastFrame.Segment].AsSpan();
                 lastFrameValues = lastFrameValues.Slice(lastFrame.Offset, lastFrame.Length);
-                lastFrameValues = lastFrameValues.Slice(SigOffset, argSize);
+                lastFrameValues = lastFrameValues.Slice(sig.Offset, argSize);
                 lastFrameValues.CopyTo(_segments[newHead].AsSpan()[0..newSize]);
 
                 ret.Segment = newHead;
@@ -298,7 +209,7 @@ namespace FastLua.VM
             //enough space. Need to relocate all existing frames that requires OnSameSegment.
             //This should be very rare for any normal code.
 
-            ReallocateFrameInternal(ref lastFrame, SigOffset + newSize);
+            ReallocateFrameInternal(ref lastFrame, sig.Offset + newSize);
 
             //Use RecoverableException to restart all Lua frames. This is necessary
             //to update the Span<TypedValue> on native C# stack.

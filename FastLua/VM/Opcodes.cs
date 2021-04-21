@@ -80,7 +80,9 @@ namespace FastLua.VM
 
         //Signature block.
 
-        SIG,
+        //This is no longer used as an independent instruction.
+        //CALL/CALLC/VARG/VARGC/RETN contain the same functionality.
+        //SIG,
 
         //Return.
         //Note: there must be a ret as the last instruction. This

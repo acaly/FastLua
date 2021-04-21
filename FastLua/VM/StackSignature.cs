@@ -30,6 +30,8 @@ namespace FastLua.VM
         public VMSpecializationType? Vararg { get; private init; }
         public bool IsUnspecialized { get; private init; }
 
+        public int FLength => ElementInfo.Length;
+
         public static readonly StackSignature Null = new()
         {
             _vararg = null,
@@ -60,7 +62,7 @@ namespace FastLua.VM
                 {
                     SigType = this,
                     SigTypeId = GlobalId,
-                    SigFLength = ElementInfo.Length,
+                    SigFLength = FLength,
                     HasV = Vararg.HasValue,
                 };
             }
@@ -79,6 +81,8 @@ namespace FastLua.VM
         //Compatible means all slots of the smaller one fix into the bigger
         //one without needing any conversion, so that directly adjusting
         //length is enough.
+        //Note that for types with vararg, the vararg part must also be compatible
+        //(without any moving/conversion).
         public bool IsCompatibleWith(StackSignature sig)
         {
             if (IsUnspecialized && sig.IsUnspecialized)
@@ -89,7 +93,7 @@ namespace FastLua.VM
             return sig.GlobalId == 0 || _compatibleSignatures.Contains(sig.GlobalId);
         }
 
-        public void AdjustStackToUnspecialized()
+        public void AdjustStackToUnspecialized(in StackFrameValues values)
         {
             if (!IsUnspecialized)
             {

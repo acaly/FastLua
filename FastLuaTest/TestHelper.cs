@@ -52,6 +52,7 @@ namespace FastLuaTest
         {
             Assert.AreEqual(p1.Instructions, p2.Instructions);
             Assert.AreEqual(p1.Constants, p2.Constants);
+            //TODO compare other fields
         }
 
         private static void CheckASTSerialization(SyntaxRoot ast, LClosure closure)
