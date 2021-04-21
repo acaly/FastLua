@@ -1,5 +1,8 @@
 # FastLua
 
+[![build](https://github.com/acaly/FastLua/actions/workflows/dotnet.yml/badge.svg)](https://github.com/)
+[![codecov](https://codecov.io/gh/acaly/FastLua/branch/master/graph/badge.svg?token=MXRJCRS73G)](https://codecov.io/gh/acaly/FastLua)
+
 FastLua is a Lua 5.2 implementation in pure C#, running on .NET 5.
 
 There are already some popular Lua implementations in C#, including
