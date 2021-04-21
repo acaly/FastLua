@@ -1,5 +1,6 @@
 ﻿using FastLua.CodeGen;
 using FastLua.Parser;
+using FastLua.SyntaxTree;
 using FastLua.VM;
 using NUnit.Framework;
 using System;
@@ -47,6 +48,27 @@ namespace FastLuaTest
             return 1;
         }
 
+        private static void CompareProto(Proto p1, Proto p2)
+        {
+            Assert.AreEqual(p1.Instructions, p2.Instructions);
+            Assert.AreEqual(p1.Constants, p2.Constants);
+        }
+
+        private static void CheckASTSerialization(SyntaxRoot ast, LClosure closure)
+        {
+            using var stream = new MemoryStream();
+            var writer = new BinaryWriter(stream);
+            ast.Write(writer);
+            stream.Position = 0;
+            var reader = new BinaryReader(stream);
+            var newAst = SyntaxRoot.Read(reader);
+
+            var codeGen = new CodeGenerator();
+            var newClosure = codeGen.Compile(ast, null);
+
+            CompareProto(closure.Proto, newClosure.Proto);
+        }
+
         private static LClosure Compile(string code, Table env)
         {
             var codeReader = new StringReader(code);
@@ -65,7 +87,10 @@ namespace FastLuaTest
             var ast = builder.Finish();
 
             var codeGen = new CodeGenerator();
-            return codeGen.Compile(ast, env);
+            var ret = codeGen.Compile(ast, env);
+            CheckASTSerialization(ast, ret);
+
+            return ret;
         }
 
         public static void DoString(string str, Table env, Span<TypedValue> args, Span<TypedValue> results)
