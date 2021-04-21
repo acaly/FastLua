@@ -51,7 +51,7 @@ namespace FastLuaBenchmark
 
         private static readonly FastLua.VM.Table _fastLuaEnv = new();
         private readonly Thread _fastLuaThread = new();
-        private readonly StackInfo _fastLuaStackFrame;
+        private readonly AsyncStackInfo _fastLuaStackFrame;
         private LClosure _fastLuaClosure;
 
         private readonly Script _moonSharpScript = new();

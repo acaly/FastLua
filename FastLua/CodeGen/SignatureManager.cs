@@ -100,16 +100,16 @@ namespace FastLua.CodeGen
             return vararg.HasValue ? vr : nvr;
         }
 
-        public SignatureDesc[] ToArray()
+        public StackSignature[] ToArray()
         {
-            var ret = new SignatureDesc[_nextId];
+            var ret = new StackSignature[_nextId];
             foreach (var list in _knownSignatures.Values)
             {
                 foreach (var (sig, index) in list)
                 {
                     if (index != -1)
                     {
-                        ret[index] = sig.GetDesc();
+                        ret[index] = sig;
                     }
                 }
             }

@@ -345,18 +345,18 @@ namespace FastLua.VM
             GetRaw(key, out value);
         }
 
-        internal void SetSequence(Span<TypedValue> values, ref SignatureDesc sig)
+        internal void SetSequence(Span<TypedValue> values, StackSignature sig)
         {
-            for (int i = 0; i < sig.SigFLength; ++i)
+            for (int i = 0; i < sig.FLength; ++i)
             {
-                var (type, slot) = sig.SigType.ElementInfo[i];
+                var (type, slot) = sig.ElementInfo[i];
                 AppendSequence(TypedValue.MakeTyped(values[slot], type));
             }
-            int lastSlot = sig.SigType.SlotInfo.Length;
-            Debug.Assert(lastSlot == values.Length || sig.SigType.Vararg.HasValue);
-            if (sig.SigType.Vararg.HasValue)
+            int lastSlot = sig.SlotInfo.Length;
+            Debug.Assert(lastSlot == values.Length || sig.Vararg.HasValue);
+            if (sig.Vararg.HasValue)
             {
-                var varargType = sig.SigType.Vararg.Value;
+                var varargType = sig.Vararg.Value;
                 for (int i = lastSlot; i < values.Length; ++i)
                 {
                     AppendSequence(TypedValue.MakeTyped(values[i], varargType));

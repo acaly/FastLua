@@ -21,72 +21,6 @@ namespace FastLua.VM
             _serializedFrames.Init(Options.InitialFrameCapacity);
         }
 
-        //Signature region.
-
-        ////Adjust sig block. This operation handles sig block generated inside the same function
-        ////so it should never fail (or it's a program error), and we don't really need to check.
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal int ResizeSigBlockLeft(in SignatureDesc desc, int pos)
-        //{
-        //    if (SigDesc.SigTypeId == (ulong)WellKnownStackSignature.Null)
-        //    {
-        //        //New sig block at given place.
-        //        SigDesc = desc;
-        //        return SigOffset = pos;
-        //    }
-        //    else
-        //    {
-        //        Debug.Assert(desc.SigFLength >= SigDesc.SigFLength);
-        //
-        //        //Extend to left.
-        //        SigDesc = desc;
-        //        return SigOffset -= desc.SigFLength - SigDesc.SigFLength;
-        //    }
-        //    //Don't clear v length.
-        //}
-
-        ////Adjust the sig block with given type without changing its starting position.
-        ////Vararg should be converted to unspecialized type and left at the end.
-        //internal bool TryAdjustSigBlockRight(ref StackFrameValues values, in SignatureDesc desc)
-        //{
-        //    if (desc.SigTypeId == SigDesc.SigTypeId)
-        //    {
-        //        //Same type.
-        //        return true;
-        //    }
-        //    if (!SigDesc.SigType.IsCompatibleWith(desc.SigType))
-        //    {
-        //        //Not compatible.
-        //        if (!desc.SigType.IsUnspecialized)
-        //        {
-        //            //Target is not unspecialized. We can do nothing here.
-        //            return false;
-        //        }
-        //
-        //        //Target is unspecialized. We can make them compatible.
-        //        Debug.Assert(!SigDesc.SigType.IsUnspecialized);
-        //        SigDesc.SigType.AdjustStackToUnspecialized();
-        //    }
-        //
-        //    var diff = desc.SigFLength - SigDesc.SigFLength;
-        //
-        //    //Fill nils if necessary.
-        //    if (desc.SigFLength > SigDesc.SigFLength + SigVLength)
-        //    {
-        //        values.Span.Slice(SigOffset + SigTotalLength, diff).Fill(TypedValue.Nil);
-        //        SigVLength = 0;
-        //    }
-        //    else
-        //    {
-        //        //Update variant part length for WriteVararg to work properly.
-        //        SigVLength -= desc.SigFLength - SigDesc.SigFLength;
-        //    }
-        //
-        //    SigDesc = desc;
-        //
-        //    return true;
-        //}
-
         //Stack management.
 
         private readonly List<TypedValue[]> _segments = new();
@@ -94,14 +28,10 @@ namespace FastLua.VM
 
         internal Stack<LClosure> ClosureStack = new();
 
-        public StackInfo AllocateRootCSharpStack(int size)
+        public AsyncStackInfo AllocateRootCSharpStack(int size)
         {
             AllocateFirstFrame(size);
-            return new StackInfo
-            {
-                Thread = this,
-                StackFrame = 0,
-            };
+            return new AsyncStackInfo(this, 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -162,10 +92,10 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal StackInfo ConvertToNativeFrame(ref StackFrame frame)
+        internal AsyncStackInfo ConvertToNativeFrame(ref StackFrame frame)
         {
             Debug.Assert(Unsafe.AreSame(ref frame, ref _serializedFrames.Last));
-            return new() { Thread = this, StackFrame = _serializedFrames.Count - 1 };
+            return new(this, _serializedFrames.Count - 1);
         }
 
         private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, in StackSignatureState sig,

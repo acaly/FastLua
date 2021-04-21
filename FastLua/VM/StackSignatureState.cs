@@ -53,7 +53,7 @@ namespace FastLua.VM
             this = default;
         }
 
-        public int AdjustLeft(ref StackFrameValues values, StackSignature newSigType, int pos)
+        public int AdjustLeft(in StackFrameValues values, StackSignature newSigType, int pos)
         {
             //TODO in some cases we need to update values
             if (Type is null)
@@ -75,7 +75,7 @@ namespace FastLua.VM
 
         //Vararg part is always kept. Caller must use DiscardVararg/MoveVararg to clear them
         //if the new type contains no vararg.
-        public bool AdjustRight(ref StackFrameValues values, StackSignature newSigType)
+        public bool AdjustRight(in StackFrameValues values, StackSignature newSigType)
         {
             if (newSigType.GlobalId == Type.GlobalId)
             {
@@ -114,11 +114,11 @@ namespace FastLua.VM
             return true;
         }
 
-        internal void MoveVararg(ref StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
+        internal void MoveVararg(in StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
         {
             if (!Type.Vararg.HasValue)
             {
-                DiscardVararg(ref values);
+                DiscardVararg(in values);
                 return;
             }
             Debug.Assert(Type.Vararg.HasValue);
@@ -134,11 +134,11 @@ namespace FastLua.VM
             }
         }
 
-        internal int MoveVararg(ref StackFrameValues values, Span<TypedValue> storage)
+        internal int MoveVararg(in StackFrameValues values, Span<TypedValue> storage)
         {
             if (!Type.Vararg.HasValue)
             {
-                DiscardVararg(ref values);
+                DiscardVararg(in values);
                 return 0;
             }
 
@@ -157,7 +157,7 @@ namespace FastLua.VM
             return len;
         }
 
-        internal void DiscardVararg(ref StackFrameValues values)
+        internal void DiscardVararg(in StackFrameValues values)
         {
             if (VLength > 0)
             {

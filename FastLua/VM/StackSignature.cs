@@ -54,21 +54,6 @@ namespace FastLua.VM
         {
         }
 
-        public SignatureDesc GetDesc()
-        {
-            if (IsUnspecialized)
-            {
-                return new SignatureDesc
-                {
-                    SigType = this,
-                    SigTypeId = GlobalId,
-                    SigFLength = FLength,
-                    HasV = Vararg.HasValue,
-                };
-            }
-            throw new NotImplementedException();
-        }
-
         public StackSignature WithVararg(VMSpecializationType type)
         {
             if (IsUnspecialized)
