@@ -30,7 +30,7 @@ jobs:
         flags: unittests
         name: codecov
         fail_ci_if_error: true
-        verbose: true
+        verbose: false
     - name: Benchmark
       run: dotnet run -c Release --project FastLuaBenchmark
       
