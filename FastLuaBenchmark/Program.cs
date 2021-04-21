@@ -3,6 +3,8 @@ using BenchmarkDotNet.Running;
 using FastLua.CodeGen;
 using FastLua.Parser;
 using FastLua.VM;
+using KopiLua;
+using MoonSharp.Interpreter;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -30,34 +32,63 @@ namespace FastLuaBenchmark
             var ast = builder.Finish();
 
             var codeGen = new CodeGenerator();
-            return codeGen.Compile(ast, null);
+            return codeGen.Compile(ast, _fastLuaEnv);
         }
 
         private void PrepareScripts(string name)
         {
             var code = File.ReadAllText(name + ".lua");
             _fastLuaClosure = Compile(code);
-            _moonSharpClosure = new MoonSharp.Interpreter.Script().LoadString(code).Function;
-            global::KopiLua.Lua.luaL_loadstring(_kopiLuaState, new(code));
+            _moonSharpClosure = _moonSharpScript.LoadString(code).Function;
+            Lua.luaL_loadstring(_kopiLuaState, new(code));
         }
 
-        [Params("self_function", "numeric_for", "recursive_call")]
+        [Params("self_function", "numeric_for", "recursive_call", "native_call")]
         public string ScriptFile
         {
             set => PrepareScripts(value);
         }
 
+        private static readonly FastLua.VM.Table _fastLuaEnv = new();
         private readonly Thread _fastLuaThread = new();
         private readonly StackInfo _fastLuaStackFrame;
         private LClosure _fastLuaClosure;
 
-        private MoonSharp.Interpreter.Closure _moonSharpClosure;
+        private readonly Script _moonSharpScript = new();
+        private Closure _moonSharpClosure;
 
-        private readonly KopiLua.Lua.lua_State _kopiLuaState = global::KopiLua.Lua.luaL_newstate();
+        private readonly Lua.lua_State _kopiLuaState = Lua.luaL_newstate();
 
         public Program()
         {
+            _fastLuaEnv.SetRaw(TypedValue.MakeString("add"), TypedValue.MakeNClosure(FastLuaNativeAdd));
             _fastLuaStackFrame = _fastLuaThread.AllocateRootCSharpStack(1);
+
+            _moonSharpScript.Globals.Set("add", DynValue.NewCallback(MoonSharpNativeAdd));
+
+            Lua.lua_pushcfunction(_kopiLuaState, KopiLuaNativeAdd);
+            Lua.lua_setglobal(_kopiLuaState, "add");
+        }
+
+        private static int FastLuaNativeAdd(StackInfo stack, int args)
+        {
+            stack.Read(0, out var a);
+            stack.Read(1, out var b);
+            stack.Write(0, TypedValue.MakeDouble(a.NumberVal + b.NumberVal));
+            return 1;
+        }
+
+        private static DynValue MoonSharpNativeAdd(ScriptExecutionContext context, CallbackArguments args)
+        {
+            return DynValue.NewNumber(args[0].Number + args[1].Number);
+        }
+
+        private static int KopiLuaNativeAdd(Lua.lua_State L)
+        {
+            var a = Lua.lua_tonumber(L, 1);
+            var b = Lua.lua_tonumber(L, 2);
+            Lua.lua_pushnumber(L, a + b);
+            return 1;
         }
 
         [Benchmark]
@@ -77,10 +108,10 @@ namespace FastLuaBenchmark
         [Benchmark]
         public double KopiLua()
         {
-            global::KopiLua.Lua.lua_pushvalue(_kopiLuaState, -1);
-            global::KopiLua.Lua.lua_call(_kopiLuaState, 0, 1);
-            var r = global::KopiLua.Lua.lua_tonumber(_kopiLuaState, -1);
-            global::KopiLua.Lua.lua_pop(_kopiLuaState, 1);
+            Lua.lua_pushvalue(_kopiLuaState, -1);
+            Lua.lua_call(_kopiLuaState, 0, 1);
+            var r = Lua.lua_tonumber(_kopiLuaState, -1);
+            Lua.lua_pop(_kopiLuaState, 1);
             return r;
         }
 
