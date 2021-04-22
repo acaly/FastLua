@@ -25,6 +25,7 @@ namespace FastLua.CodeGen
         private readonly ExpressionGenerator _nilValue;
         private AllocatedLocal _nilSlot;
         private readonly int _variableSignature; //Sig index (in proto) of the vararg part on lhs.
+        private readonly StackSignature _variableSignatureType;
         private readonly SequentialStackFragment _variableFragment;
         private readonly List<ExpressionGenerator> _unusedValues = new();
 
@@ -97,7 +98,7 @@ namespace FastLua.CodeGen
                         Type = type,
                     });
                 }
-                _variableSignature = sigWriter.GetSignature(factory.Function.SignatureManager).i;
+                (_variableSignatureType, _variableSignature) = sigWriter.GetSignature(factory.Function.SignatureManager);
                 //Note that _variableValue is not used to determine the signature. Instead, it
                 //is given the signature in the EmitGet call, in which it must check whether
                 //it can return as the given type (or don't check and rely on a valid optimizer).
@@ -183,7 +184,8 @@ namespace FastLua.CodeGen
             if (_variableValue is not null)
             {
                 _variableValue.EmitPrep(writer);
-                _variableValue.EmitGet(writer, _variableFragment, _variableSignature, keepSig: false);
+                _variableValue.EmitGet(writer, _variableFragment, _variableSignatureType,
+                    _variableSignature, keepSig: false);
                 foreach (var v in _variableAssignment)
                 {
                     v.VariableGenerator.EmitSet(writer, v.TempSlot, v.Type);

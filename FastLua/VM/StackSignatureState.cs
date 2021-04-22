@@ -53,23 +53,14 @@ namespace FastLua.VM
             this = default;
         }
 
-        public int AdjustLeft(in StackFrameValues values, StackSignature newSigType, int pos)
+        public void AdjustLeft(in StackFrameValues values, StackSignature newSigType)
         {
-            //TODO in some cases we need to update values
-            if (Type is null)
-            {
-                //New sig block at given place.
-                Type = newSigType;
-                return Offset = pos;
-            }
-            else
-            {
-                Debug.Assert(newSigType.FLength >= Type.FLength);
+            Debug.Assert(newSigType.FLength >= Type.FLength);
 
-                //Extend to left.
-                Type = newSigType;
-                return Offset -= newSigType.FLength - Type.FLength;
-            }
+            //TODO in some cases we need to update values
+            //Type = newSigType;
+            //return Offset -= newSigType.FLength - Type.FLength;
+            throw new NotImplementedException();
             //Don't clear v length.
         }
 

@@ -16,6 +16,7 @@ namespace FastLua.CodeGen
         //Return sig type (only when returning single value (ReceiverMultiRetState is Fixed).
         private readonly VMSpecializationType _singleRetType;
         private readonly int _singleRetSigIndex;
+        private readonly StackSignature _singleRetSigType;
 
         private readonly bool _selfMode;
         private readonly AllocatedLocal _funcTempSlot;
@@ -35,6 +36,7 @@ namespace FastLua.CodeGen
         private readonly GroupStackFragment _mergedSigFragment;
         private readonly GroupStackFragment _varargStack;
         private readonly int _mergedArgSigIndex, _varargArgSigIndex;
+        private readonly StackSignature _varargArgSigType;
 
         public InvocationExpressionGenerator(GeneratorFactory factory, BlockGenerator block,
             InvocationExpressionSyntaxNode expr)
@@ -152,7 +154,7 @@ namespace FastLua.CodeGen
                     //We also need the sig for the last expr alone (to get its value with EmitGet).
                     var varargSigWriter = new SignatureWriter();
                     g.WritSig(varargSigWriter);
-                    _varargArgSigIndex = varargSigWriter.GetSignature(factory.Function.SignatureManager).i;
+                    (_varargArgSigType, _varargArgSigIndex) = varargSigWriter.GetSignature(factory.Function.SignatureManager);
                 }
             }
             _mergedArgSigIndex = sigWriter.GetSignature(factory.Function.SignatureManager).i;
@@ -167,7 +169,7 @@ namespace FastLua.CodeGen
                 //single fixed signature.
                 var writer = new SignatureWriter();
                 writer.AppendFixed(_singleRetType);
-                _singleRetSigIndex = writer.GetSignature(factory.Function.SignatureManager).i;
+                (_singleRetSigType, _singleRetSigIndex) = writer.GetSignature(factory.Function.SignatureManager);
             }
         }
 
@@ -206,13 +208,14 @@ namespace FastLua.CodeGen
         public override void EmitGet(InstructionWriter writer, AllocatedLocal dest)
         {
             Debug.Assert(!_isVarargRet);
-            EmitGetInternal(writer, dest.Offset, _singleRetSigIndex, keepSig: false);
+            EmitGetInternal(writer, dest.Offset, _singleRetSigType, _singleRetSigIndex, keepSig: false);
         }
 
-        public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, int sigIndex, bool keepSig)
+        public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, StackSignature sigType,
+            int sigIndex, bool keepSig)
         {
             Debug.Assert(_isVarargRet);
-            EmitGetInternal(writer, sigBlock.Offset, sigIndex, keepSig);
+            EmitGetInternal(writer, sigBlock.Offset, sigType, sigIndex, keepSig);
         }
 
         public override void EmitDiscard(InstructionWriter writer)
@@ -220,10 +223,11 @@ namespace FastLua.CodeGen
             //Similar to EmitGet single-ret mode, but write to the first ret slot, which eliminates
             //the unnecessary MOV instruction after the CALLC.
             Debug.Assert(!_isVarargRet);
-            EmitGetInternal(writer, _mergedSigFragment.Offset, (int)WellKnownStackSignature.Empty, keepSig: false);
+            EmitGetInternal(writer, _mergedSigFragment.Offset,
+                StackSignature.Empty, (int)WellKnownStackSignature.Empty, keepSig: false);
         }
 
-        private void EmitGetInternal(InstructionWriter writer, int dest, int sig, bool keepSig)
+        private void EmitGetInternal(InstructionWriter writer, int dest, StackSignature sigType, int sig, bool keepSig)
         {
             AllocatedLocal functionSlot;
             int pushParamStart;
@@ -270,16 +274,22 @@ namespace FastLua.CodeGen
             if (_vararg is not null)
             {
                 _vararg.EmitPrep(writer);
-                _vararg.EmitGet(writer, _varargStack, _varargArgSigIndex, keepSig: true);
+                _vararg.EmitGet(writer, _varargStack, _varargArgSigType, _varargArgSigIndex, keepSig: true);
             }
 
             //Call!
             var opcode = keepSig ? OpCodes.CALL : OpCodes.CALLC;
-            if (functionSlot.Offset > 255 || _mergedArgSigIndex > 255 || sig > 255)
+            var l1 = _mergedArgSigIndex;
+            var l2 = _mergedSigFragment.Offset;
+            var r1 = sig;
+            var r2 = (int)WellKnownStackSignature.EmptyV;
+            var r3 = -sigType.FLength;
+            if (functionSlot.Offset > 255 || l1 > 255 || l2 > 255 || r1 > 255 || sigType.FLength > 128)
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(opcode, functionSlot.Offset, _mergedArgSigIndex, sig);
+            writer.WriteUUU(opcode, functionSlot.Offset, l1, l2);
+            writer.WriteUUS(OpCodes.INV, r1, r2, r3);
 
             //Move if requested.
             if (dest != _mergedSigFragment.Offset)

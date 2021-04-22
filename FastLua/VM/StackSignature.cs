@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -76,6 +77,19 @@ namespace FastLua.VM
                 return true;
             }
             return sig.GlobalId == 0 || _compatibleSignatures.Contains(sig.GlobalId);
+        }
+
+        public bool IsEndCompatibleWith(StackSignature sig)
+        {
+            //AdjustLeft cannot change whether the sig has vararg part.
+            Debug.Assert(Vararg.HasValue == sig.Vararg.HasValue);
+
+            if (IsUnspecialized && sig.IsUnspecialized)
+            {
+                //Unspecialized sig are always compatible (with or without vararg).
+                return true;
+            }
+            throw new NotImplementedException();
         }
 
         public void AdjustStackToUnspecialized(in StackFrameValues values)

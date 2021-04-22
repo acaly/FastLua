@@ -14,10 +14,9 @@ namespace FastLua.CodeGen
         private readonly List<(ExpressionGenerator g, AllocatedLocal stack)> _fixedExpr = new();
         private readonly ExpressionGenerator _varargExpr;
         private readonly GroupStackFragment _varargStack;
-        private readonly int _varargSig;
-
-        private readonly int _retSig;
         private readonly SequentialStackFragment _sigFragment;
+        private readonly int _varargSig, _retSig;
+        private readonly StackSignature _varargSigType, _retSigType;
 
         public MultiReturnStatementGenerator(GeneratorFactory factory, BlockGenerator block, ReturnStatementSyntaxNode stat)
         {
@@ -78,18 +77,16 @@ namespace FastLua.CodeGen
                     //We also need the sig for the last expr alone (to get its value with EmitGet).
                     var varargSigWriter = new SignatureWriter();
                     g.WritSig(varargSigWriter);
-                    _varargSig = varargSigWriter.GetSignature(factory.Function.SignatureManager).i;
+                    (_varargSigType, _varargSig) = varargSigWriter.GetSignature(factory.Function.SignatureManager);
                 }
             }
-            _retSig = sigWriter.GetSignature(factory.Function.SignatureManager).i;
+            (_retSigType, _retSig) = sigWriter.GetSignature(factory.Function.SignatureManager);
         }
 
         public override void Emit(InstructionWriter writer)
         {
-            if (_retSig > 255 || _sigFragment.Offset > 255)
-            {
-                throw new NotImplementedException();
-            }
+            var l1 = _retSig;
+            var l2 = _sigFragment.Offset;
             foreach (var (g, stack) in _fixedExpr)
             {
                 g.EmitPrep(writer);
@@ -101,9 +98,18 @@ namespace FastLua.CodeGen
                 //untouched (see Thread.SetSigBlock). This assumes the _varargExpr writes either
                 //a fixed or a vararg slot in its WriteSig method. See comment in ExprList syntax.
                 _varargExpr.EmitPrep(writer);
-                _varargExpr.EmitGet(writer, _varargStack, _varargSig, keepSig: true);
+                _varargExpr.EmitGet(writer, _varargStack, _varargSigType, _varargSig, keepSig: true);
+                if (!_retSigType.IsEndCompatibleWith(_varargSigType))
+                {
+                    //Use slow path.
+                    l2 = 0;
+                }
             }
-            writer.WriteUUU(OpCodes.RETN, _retSig, _sigFragment.Offset, 0);
+            if (l1 > 255 || l2 > 255)
+            {
+                throw new NotImplementedException();
+            }
+            writer.WriteUUU(OpCodes.RETN, l1, l2, 0);
         }
     }
 }

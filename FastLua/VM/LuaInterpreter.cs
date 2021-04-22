@@ -171,6 +171,7 @@ namespace FastLua.VM
             while (true)
             {
                 ii = inst[pc++];
+                Debug.Assert((OpCodes)(ii >> 24) != OpCodes.INV);
                 switch ((OpCodes)(ii >> 24))
                 {
                 case OpCodes.NOP:
@@ -483,14 +484,19 @@ namespace FastLua.VM
                 case OpCodes.TINIT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
-                    int b = (int)((ii >> 8) & 0xFF);
-                    int c = (int)(ii & 0xFF);
-                    var t = (Table)values[a].Object;
-                    var initSig = proto.SigTypes[c];
-                    //TODO should convert (cannot add initSig.FLength with sig.VLength)
-                    //TODO check whether we should use sig.Offset instead of b
-                    var span = values.Span.Slice(b, initSig.FLength + sig.VLength);
-                    t.SetSequence(span, initSig);
+                    int l1 = (int)((ii >> 8) & 0xFF);
+                    int l2 = (int)(ii & 0xFF);
+                    if (l2 == 0)
+                    {
+                        sig.AdjustLeft(in values, proto.SigTypes[l1]);
+                    }
+                    else
+                    {
+                        sig.Type = proto.SigTypes[l1];
+                        sig.Offset = l2;
+                    }
+                    var span = values.Span.Slice(sig.Offset, sig.TotalLength);
+                    ((Table)values[a].Object).SetSequence(span, sig.Type);
                     sig.Clear();
                     break;
                 }
@@ -499,23 +505,37 @@ namespace FastLua.VM
                 {
                     //Similar logic is also used in FORG. Be consistent whenever CALL/CALLC is updated.
 
-                    stack[0].PC = pc;
+                    //CALL/CALLC uses 2 uints.
+                    int f = (int)((ii >> 16) & 0xFF);
+                    int l1 = (int)((ii >> 8) & 0xFF);
+                    int l2 = (int)(ii & 0xFF);
+                    ii = inst[pc++];
+                    Debug.Assert((OpCodes)(ii >> 24) == OpCodes.INV);
+                    int r1 = (int)((ii >> 16) & 0xFF);
+                    int r2 = (int)((ii >> 8) & 0xFF);
+                    int r3 = (sbyte)(byte)(ii & 0xFF);
 
-                    int a = (int)((ii >> 16) & 0xFF);
-                    int b = (int)((ii >> 8) & 0xFF);
-                    int c = (int)(ii & 0xFF);
+                    stack[0].PC = pc;
 
                     //Adjust current sig block at the left side.
                     //This allows to merge other arguments that have already been pushed before.
                     //If current sig is empty, set the starting point based on lastWrite.
-                    var argSig = proto.SigTypes[b];
-                    var sigStart = Math.Max(lastWrite + 1 - argSig.FLength, proto.SigRegionOffset);
-                    sigStart = sig.AdjustLeft(in values, argSig, sigStart);
+                    var argSig = proto.SigTypes[l1];
+                    if (l2 == 0)
+                    {
+                        sig.AdjustLeft(in values, argSig);
+                    }
+                    else
+                    {
+                        sig.Offset = l2;
+                        sig.Type = argSig;
+                    }
+                    var sigStart = sig.Offset;
 
-                    var newFuncP = values[a].Object;
+                    var newFuncP = values[f].Object;
                     if (newFuncP is LClosure lc)
                     {
-                        stack[0].RetSigIndex = c;
+                        //stack[0].RetSigIndex = r1;
 
                         //Save state.
                         stack[0].LastWrite = lastWrite;
@@ -527,7 +547,7 @@ namespace FastLua.VM
                         proto = lc.Proto;
                         //TODO is argSig.HasV necessary here?
                         stack = thread.AllocateNextFrame(ref stack[0], in sig, proto.StackSize,
-                            argSig.Vararg.HasValue || proto.SigTypes[c].Vararg.HasValue);
+                            argSig.Vararg.HasValue || proto.SigTypes[r1].Vararg.HasValue);
 
                         goto enterNewLuaFrame;
                     }
@@ -540,25 +560,44 @@ namespace FastLua.VM
                 case OpCodes.VARG:
                 case OpCodes.VARGC:
                 {
-                    int a = (int)((ii >> 16) & 0xFF);
-                    int b = (int)((ii >> 8) & 0xFF);
+                    int r1 = (int)((ii >> 16) & 0xFF);
+                    int r2 = (int)((ii >> 8) & 0xFF);
+                    int r3 = (sbyte)(byte)(ii & 0xFF);
 
                     //TODO check whether this will write out of range
                     //Also check lastWrite below.
+                    var pos = sig.Type is null ? proto.SigRegionOffset : (sig.Offset + sig.TotalLength);
                     for (int i = 0; i < stack[0].VarargInfo.VarargLength; ++i)
                     {
-                        values[b + i] = thread.VarargStack[stack[0].VarargInfo.VarargStart + i];
+                        values[pos + i] = thread.VarargStack[stack[0].VarargInfo.VarargStart + i];
                     }
 
                     //Overwrite sig as a vararg.
                     sig.Type = proto.VarargSig;
-                    sig.Offset = b;
+                    sig.Offset = pos;
                     sig.VLength = stack[0].VarargInfo.VarargLength;
 
                     //Then adjust to requested (this is needed in assignment statement).
-                    var adjustmentSuccess = sig.AdjustRight(in values, proto.SigTypes[a]);
-                    Debug.Assert(adjustmentSuccess);
-                    if (!proto.SigTypes[a].Vararg.HasValue)
+                    if (sig.Type.GlobalId == proto.SigTypes[r2].GlobalId)
+                    {
+                        //Fast path.
+                        if (sig.VLength >= r3)
+                        {
+                            sig.VLength -= r3;
+                        }
+                        else
+                        {
+                            values.Span.Slice(sig.Offset + sig.TotalLength, r3 - sig.VLength).Fill(TypedValue.Nil);
+                            sig.VLength = 0;
+                        }
+                        sig.Type = proto.SigTypes[r1];
+                    }
+                    else
+                    {
+                        var adjustmentSuccess = sig.AdjustRight(in values, proto.SigTypes[r1]);
+                        Debug.Assert(adjustmentSuccess);
+                    }
+                    if (!proto.SigTypes[r1].Vararg.HasValue)
                     {
                         sig.DiscardVararg(in values);
                     }
@@ -570,7 +609,7 @@ namespace FastLua.VM
                     }
                     else
                     {
-                        lastWrite = b + stack[0].VarargInfo.VarargLength - 1;
+                        lastWrite = pos + stack[0].VarargInfo.VarargLength - 1;
                     }
                     break;
                 }
@@ -646,11 +685,16 @@ namespace FastLua.VM
                 {
                     //Similar logic is also used in CALL/CALLC. Be consistent whenever this is updated.
 
-                    stack[0].PC = pc;
-
+                    //FORG uses 2 uints.
                     int a = (int)((ii >> 16) & 0xFF);
-                    int b = (int)((ii >> 8) & 0xFF);
-                    int c = (int)(ii & 0xFF);
+                    int jmp = (short)(ushort)(ii & 0xFFFF);
+                    ii = inst[pc++];
+                    Debug.Assert((OpCodes)(ii >> 24) == OpCodes.INV);
+                    int r1 = (int)((ii >> 16) & 0xFF);
+                    int r2 = (int)((ii >> 8) & 0xFF);
+                    int r3 = (sbyte)(byte)(ii & 0xFF);
+
+                    stack[0].PC = pc;
 
                     //FORG always call with Polymorphic_2 arguments.
                     values[a + 3] = values[a + 1]; //s
@@ -667,7 +711,7 @@ namespace FastLua.VM
                     var newFuncP = values[a].Object;
                     if (newFuncP is LClosure lc)
                     {
-                        stack[0].RetSigIndex = b;
+                        //stack[0].RetSigIndex = r1;
 
                         //Save state.
                         stack[0].LastWrite = lastWrite;
@@ -695,14 +739,19 @@ namespace FastLua.VM
                 }
                 case OpCodes.RETN:
                 {
-                    int a = (int)((ii >> 16) & 0xFF);
-                    int b = (int)((ii >> 8) & 0xFF);
+                    int l1 = (int)((ii >> 16) & 0xFF);
+                    int l2 = (int)((ii >> 8) & 0xFF);
 
                     //First adjust sig block.
-                    //TODO this should be changed to adjust left, similar to call
-                    sig.Type = proto.SigTypes[a];
-                    sig.Offset = b;
-                    //Keep vlength.
+                    if (l2 == 0)
+                    {
+                        sig.AdjustLeft(in values, proto.SigTypes[l1]);
+                    }
+                    else
+                    {
+                        sig.Type = proto.SigTypes[l1];
+                        sig.Offset = l2;
+                    }
 
                     //Then return.
                     Span<TypedValue> retSpan;
@@ -773,36 +822,64 @@ namespace FastLua.VM
             //Jump target from calls to native (C#) functions. These calls also need to adjust the
             //sig block, but it does not require the same restore step.
 
-            //Adjust return values (without moving additional to vararg list).
-            if (!sig.AdjustRight(in values, proto.SigTypes[stack[0].RetSigIndex]))
-            {
-                throw new NotImplementedException();
-            }
-            if (!proto.SigTypes[stack[0].RetSigIndex].Vararg.HasValue)
-            {
-                sig.DiscardVararg(in values);
-            }
-
             ii = proto.Instructions[pc - 1];
-            switch ((OpCodes)(ii >> 24))
+            Debug.Assert((OpCodes)(ii >> 24) == OpCodes.INV);
             {
-            case OpCodes.CALLC:
-                sig.Clear();
-                lastWrite = 0;
-                break;
-            case OpCodes.FORG:
-                sig.Clear();
-                lastWrite = 0;
+                int r1 = (int)((ii >> 16) & 0xFF);
+                int r2 = (int)((ii >> 8) & 0xFF);
+                int r3 = (sbyte)(byte)(ii & 0xFF);
 
-                //For-loop related logic.
-                int a = (int)((ii >> 16) & 0xFF);
-
-                if (values[a + 3].Type == VMSpecializationType.Nil)
+                //Adjust return values (without moving additional to vararg list).
+                if (sig.Type.GlobalId == proto.SigTypes[r2].GlobalId)
                 {
-                    pc += (sbyte)(byte)(ii & 0xFF);
+                    //Fast path.
+                    if (sig.VLength >= r3)
+                    {
+                        sig.VLength -= r3;
+                    }
+                    else
+                    {
+                        values.Span.Slice(sig.Offset + sig.TotalLength, r3 - sig.VLength).Fill(TypedValue.Nil);
+                        sig.VLength = 0;
+                    }
+                    sig.Type = proto.SigTypes[r1];
                 }
-                values[a + 2] = values[a + 3]; //var = var_1
-                break;
+                else
+                {
+                    if (!sig.AdjustRight(in values, proto.SigTypes[r1]))
+                    {
+                        throw new NotImplementedException();
+                    }
+                }
+                if (!proto.SigTypes[r1].Vararg.HasValue)
+                {
+                    sig.DiscardVararg(in values);
+                }
+
+                //TODO maybe we should give CALL/CALLC/FORG different OpCodes for INV
+                //so we don't need to read 2 instructions.
+                switch ((OpCodes)(proto.Instructions[pc - 2] >> 24))
+                {
+                case OpCodes.CALLC:
+                    sig.Clear();
+                    lastWrite = 0;
+                    break;
+
+                case OpCodes.FORG:
+                    sig.Clear();
+                    lastWrite = 0;
+
+                    //For-loop related logic.
+                    ii = proto.Instructions[pc - 2];
+                    int a = (int)((ii >> 16) & 0xFF);
+
+                    if (values[a + 3].Type == VMSpecializationType.Nil)
+                    {
+                        pc += (short)(ushort)(ii & 0xFFFF);
+                    }
+                    values[a + 2] = values[a + 3]; //var = var_1
+                    break;
+                }
             }
             goto continueOldFrame;
         }

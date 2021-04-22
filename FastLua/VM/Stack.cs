@@ -49,7 +49,7 @@ namespace FastLua.VM
         public int PC;
         public int LastWrite;
         public int SigOffset;
-        public int RetSigIndex;
+        //public int RetSigIndex;
 
         public StackFrameVarargInfo VarargInfo;
     }

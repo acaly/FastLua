@@ -16,6 +16,7 @@ namespace FastLua.CodeGen
         private readonly AllocatedLocal _hiddenVariableStack;
         private readonly AllocatedLocal _firstLoopVarStack;
         private readonly int _loopVarSig;
+        private readonly StackSignature _loopVarSigType;
 
         public GenericForStatementGenerator(GeneratorFactory factory, BlockGenerator block, GenericForBlockSyntaxNode stat)
         {
@@ -46,7 +47,7 @@ namespace FastLua.CodeGen
             {
                 factory.Function.Locals[loopVar].WritSig(sigWriter);
             }
-            _loopVarSig = sigWriter.GetSignature(factory.Function.SignatureManager).i;
+            (_loopVarSigType, _loopVarSig) = sigWriter.GetSignature(factory.Function.SignatureManager);
         }
 
         public override void Emit(InstructionWriter writer)
@@ -62,12 +63,15 @@ namespace FastLua.CodeGen
             _assignment.Emit(writer);
 
             writer.MarkLabel(loopLabel);
-            if (_hiddenVariableStack.Offset > 255 || _loopVarSig > 255)
+            if (_hiddenVariableStack.Offset > 255 || _loopVarSig > 255 || _loopVarSigType.FLength > 128)
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUS(OpCodes.FORG, _hiddenVariableStack.Offset, _loopVarSig, 0);
-            writer.AddLabelFix(exitLabel, InstructionWriter.FixUUSJump);
+
+            writer.WriteUSx(OpCodes.FORG, _hiddenVariableStack.Offset, 0);
+            writer.AddLabelFix(exitLabel, InstructionWriter.FixUSxJump);
+            //Adjust right parameter: assume EmptyV.
+            writer.WriteUUS(OpCodes.INV, _loopVarSig, (int)WellKnownStackSignature.EmptyV, -_loopVarSigType.FLength);
 
             //Emit inner block.
             _forBlock.EmitStatements(writer);

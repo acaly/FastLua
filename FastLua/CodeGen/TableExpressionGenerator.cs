@@ -16,6 +16,7 @@ namespace FastLua.CodeGen
         private readonly BlockStackFragment _varargStack;
         private readonly OverlappedStackFragment _seqStack;
         private readonly int _sig, _varargSig;
+        private StackSignature _sigType, _varargSigType;
 
         public TableExpressionGenerator(GeneratorFactory factory, BlockGenerator block, TableExpressionSyntaxNode expr)
             : base(0)
@@ -48,7 +49,7 @@ namespace FastLua.CodeGen
                         varargSigFragment.Add(_varargStack);
                         v.WritSig(sigWriter);
                         v.WritSig(varargSigWriter);
-                        _varargSig = varargSigWriter.GetSignature(factory.Function.SignatureManager).i;
+                        (_varargSigType, _varargSig) = varargSigWriter.GetSignature(factory.Function.SignatureManager);
                     }
                     else
                     {
@@ -77,7 +78,7 @@ namespace FastLua.CodeGen
 
             if (hasSeq)
             {
-                _sig = sigWriter.GetSignature(factory.Function.SignatureManager).i;
+                (_sigType, _sig) = sigWriter.GetSignature(factory.Function.SignatureManager);
                 _seqStack = factory.Function.SigBlockFragment;
             }
         }
@@ -134,15 +135,21 @@ namespace FastLua.CodeGen
             if (_varargVal is not null)
             {
                 _varargVal.EmitPrep(writer);
-                _varargVal.EmitGet(writer, _varargStack, _varargSig, keepSig: true);
+                _varargVal.EmitGet(writer, _varargStack, _varargSigType, _varargSig, keepSig: true);
             }
             if (hasSeq)
             {
-                if (_seqStack.Offset > 255 || _sig > 255)
+                int l1 = _sig;
+                int l2 = 0;
+                if (_varargSigType is null || _varargSigType.IsEndCompatibleWith(_sigType))
+                {
+                    l2 = _seqStack.Offset;
+                }
+                if (l1 > 255 || l2 > 255)
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(OpCodes.TINIT, dest.Offset, _seqStack.Offset, _sig);
+                writer.WriteUUU(OpCodes.TINIT, dest.Offset, l1, l2);
             }
         }
 

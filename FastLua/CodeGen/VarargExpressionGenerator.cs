@@ -47,14 +47,18 @@ namespace FastLua.CodeGen
             writer.WriteUUU(OpCodes.VARG1, dest.Offset, 0, 0);
         }
 
-        public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, int sigIndex, bool keepSig)
+        public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, StackSignature sigType,
+            int sigIndex, bool keepSig)
         {
             Debug.Assert(_isVararg);
-            if (sigIndex > 255 || sigBlock.Offset > 255)
+            if (sigIndex > 255 || sigBlock.Offset > 255 | sigType.FLength > 128)
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(keepSig ? OpCodes.VARG : OpCodes.VARGC, sigIndex, sigBlock.Offset, 0);
+            //Adjust right parameters: assume EmptyV.
+            //This might not be true for specialized functions. In this case, it will go through slow path.
+            writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
+                sigIndex, (int)WellKnownStackSignature.EmptyV, -sigType.FLength);
         }
 
         public override void WritSig(SignatureWriter writer)
