@@ -21,7 +21,7 @@ namespace FastLua.VM
 
     internal class StackSignature
     {
-        private static ulong _nextGlobalId = 1;
+        private static ulong _nextGlobalId = (ulong)WellKnownStackSignature.Next;
         private readonly HashSet<ulong> _compatibleSignatures = new();
         private StackSignature _vararg { get; init; }
 
@@ -110,7 +110,7 @@ namespace FastLua.VM
         {
             var a = new StackSignature()
             {
-                GlobalId = nvid ?? Interlocked.Increment(ref _nextGlobalId),
+                GlobalId = vid ?? Interlocked.Increment(ref _nextGlobalId),
                 ElementInfo = Enumerable.Range(0, count)
                     .Select(i => (VMSpecializationType.Polymorphic, i)).ToImmutableArray(),
                 SlotInfo = Enumerable.Range(0, count)
@@ -120,7 +120,7 @@ namespace FastLua.VM
             };
             var b = new StackSignature()
             {
-                GlobalId = vid ?? Interlocked.Increment(ref _nextGlobalId),
+                GlobalId = nvid ?? Interlocked.Increment(ref _nextGlobalId),
                 ElementInfo = a.ElementInfo,
                 SlotInfo = a.SlotInfo,
                 Vararg = null,

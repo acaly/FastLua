@@ -64,6 +64,21 @@ namespace FastLua.VM
             //Don't clear v length.
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AdjustRightToEmptyV(in StackFrameValues values)
+        {
+            if (Type.GlobalId == (ulong)WellKnownStackSignature.EmptyV)
+            {
+                return;
+            }
+            if (!Type.IsUnspecialized)
+            {
+                Type.AdjustStackToUnspecialized(in values);
+            }
+            VLength = TotalLength;
+            Type = StackSignature.EmptyV;
+        }
+
         //Vararg part is always kept. Caller must use DiscardVararg/MoveVararg to clear them
         //if the new type contains no vararg.
         public bool AdjustRight(in StackFrameValues values, StackSignature newSigType)
@@ -105,7 +120,7 @@ namespace FastLua.VM
             return true;
         }
 
-        internal void MoveVararg(in StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
+        public void MoveVararg(in StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
         {
             if (!Type.Vararg.HasValue)
             {
@@ -125,7 +140,7 @@ namespace FastLua.VM
             }
         }
 
-        internal void DiscardVararg(in StackFrameValues values)
+        public void DiscardVararg(in StackFrameValues values)
         {
             if (VLength > 0)
             {

@@ -9,7 +9,6 @@ namespace FastLua.VM
     public enum OpCodes
     {
         NOP,
-        INV,
 
         //Comparison.
 
@@ -67,7 +66,9 @@ namespace FastLua.VM
         //Call.
 
         CALL,
+        CALL_CTN,
         CALLC,
+        CALLC_CTN,
         VARG,
         VARGC,
         VARG1,
@@ -78,6 +79,7 @@ namespace FastLua.VM
         FORI,
         FORL,
         FORG,
+        FORG_CTN,
 
         //Return.
         //Note: there must be a ret as the last instruction. This

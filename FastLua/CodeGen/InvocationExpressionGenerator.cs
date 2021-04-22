@@ -278,7 +278,8 @@ namespace FastLua.CodeGen
             }
 
             //Call!
-            var opcode = keepSig ? OpCodes.CALL : OpCodes.CALLC;
+            var opcode1 = keepSig ? OpCodes.CALL : OpCodes.CALLC;
+            var opcode2 = keepSig ? OpCodes.CALL_CTN : OpCodes.CALLC_CTN;
             var l1 = _mergedArgSigIndex;
             var l2 = _mergedSigFragment.Offset;
             var r1 = sig;
@@ -288,8 +289,8 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(opcode, functionSlot.Offset, l1, l2);
-            writer.WriteUUS(OpCodes.INV, r1, r2, r3);
+            writer.WriteUUU(opcode1, functionSlot.Offset, l1, l2);
+            writer.WriteUUS(opcode2, r1, r2, r3);
 
             //Move if requested.
             if (dest != _mergedSigFragment.Offset)

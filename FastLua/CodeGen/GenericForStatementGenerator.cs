@@ -71,7 +71,7 @@ namespace FastLua.CodeGen
             writer.WriteUSx(OpCodes.FORG, _hiddenVariableStack.Offset, 0);
             writer.AddLabelFix(exitLabel, InstructionWriter.FixUSxJump);
             //Adjust right parameter: assume EmptyV.
-            writer.WriteUUS(OpCodes.INV, _loopVarSig, (int)WellKnownStackSignature.EmptyV, -_loopVarSigType.FLength);
+            writer.WriteUUS(OpCodes.FORG_CTN, _loopVarSig, (int)WellKnownStackSignature.EmptyV, -_loopVarSigType.FLength);
 
             //Emit inner block.
             _forBlock.EmitStatements(writer);
