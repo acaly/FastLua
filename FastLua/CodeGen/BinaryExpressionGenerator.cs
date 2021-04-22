@@ -18,7 +18,7 @@ namespace FastLua.CodeGen
             RightToDest, //Right written to result's location.
         }
 
-        private readonly Opcodes _opcode;
+        private readonly OpCodes _opcode;
         private readonly VMSpecializationType _type;
         private readonly CalcMode _mode;
         private readonly ExpressionGenerator _left, _right;
@@ -89,12 +89,12 @@ namespace FastLua.CodeGen
         {
             _opcode = expr.Operator.V switch
             {
-                BinaryOperator.Raw.Add => Opcodes.ADD,
-                BinaryOperator.Raw.Sub => Opcodes.SUB,
-                BinaryOperator.Raw.Mul => Opcodes.MUL,
-                BinaryOperator.Raw.Div => Opcodes.DIV,
-                BinaryOperator.Raw.Mod => Opcodes.MOD,
-                BinaryOperator.Raw.Pow => Opcodes.POW,
+                BinaryOperator.Raw.Add => OpCodes.ADD,
+                BinaryOperator.Raw.Sub => OpCodes.SUB,
+                BinaryOperator.Raw.Mul => OpCodes.MUL,
+                BinaryOperator.Raw.Div => OpCodes.DIV,
+                BinaryOperator.Raw.Mod => OpCodes.MOD,
+                BinaryOperator.Raw.Pow => OpCodes.POW,
                 _ => throw new Exception(), //Should not get here.
             };
         }

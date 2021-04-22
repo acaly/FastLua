@@ -45,7 +45,7 @@ namespace FastLua.CodeGen
                 //Skip rest clauses (unless it's already the last one).
                 if (i != _clauses.Count - 1)
                 {
-                    writer.WriteUSx(Opcodes.JMP, 0, 0);
+                    writer.WriteUSx(OpCodes.JMP, 0, 0);
                     writer.AddLabelFix(_endIfLabel, InstructionWriter.FixUSxJump);
                 }
 

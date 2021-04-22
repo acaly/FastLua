@@ -171,11 +171,11 @@ namespace FastLua.VM
             while (true)
             {
                 ii = inst[pc++];
-                switch ((Opcodes)(ii >> 24))
+                switch ((OpCodes)(ii >> 24))
                 {
-                case Opcodes.NOP:
+                case OpCodes.NOP:
                     break;
-                case Opcodes.ISLT:
+                case OpCodes.ISLT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -185,7 +185,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISLE:
+                case OpCodes.ISLE:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -195,7 +195,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISNLT:
+                case OpCodes.ISNLT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -205,7 +205,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISNLE:
+                case OpCodes.ISNLE:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -215,7 +215,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISEQ:
+                case OpCodes.ISEQ:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -225,7 +225,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISNE:
+                case OpCodes.ISNE:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -236,7 +236,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.ISTC:
+                case OpCodes.ISTC:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -248,7 +248,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.ISFC:
+                case OpCodes.ISFC:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -260,7 +260,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.MOV:
+                case OpCodes.MOV:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -268,7 +268,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.NOT:
+                case OpCodes.NOT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -276,7 +276,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.NEG:
+                case OpCodes.NEG:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -295,7 +295,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.LEN:
+                case OpCodes.LEN:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -303,7 +303,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.ADD:
+                case OpCodes.ADD:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -312,7 +312,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.ADD_D:
+                case OpCodes.ADD_D:
                 {
                     var a = (byte)(ii >> 16);
                     var b = (byte)(ii >> 8);
@@ -321,7 +321,7 @@ namespace FastLua.VM
                     lastWrite = a; //+<5% overhead
                     break;
                 }
-                case Opcodes.SUB:
+                case OpCodes.SUB:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -330,7 +330,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.MUL:
+                case OpCodes.MUL:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -339,7 +339,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.DIV:
+                case OpCodes.DIV:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -348,7 +348,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.MOD:
+                case OpCodes.MOD:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -357,7 +357,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.POW:
+                case OpCodes.POW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -366,7 +366,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.CAT:
+                case OpCodes.CAT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -382,7 +382,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.K:
+                case OpCodes.K:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -390,7 +390,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.K_D:
+                case OpCodes.K_D:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -398,7 +398,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.UGET:
+                case OpCodes.UGET:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -407,7 +407,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.USET:
+                case OpCodes.USET:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -415,7 +415,7 @@ namespace FastLua.VM
                     values.GetUpvalue(b, c) = values[a];
                     break;
                 }
-                case Opcodes.UNEW:
+                case OpCodes.UNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -423,7 +423,7 @@ namespace FastLua.VM
                     //Type not set.
                     break;
                 }
-                case Opcodes.FNEW:
+                case OpCodes.FNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -442,14 +442,14 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.TNEW:
+                case OpCodes.TNEW:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     values[a] = TypedValue.MakeTable(new Table());
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.TGET:
+                case OpCodes.TGET:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -465,7 +465,7 @@ namespace FastLua.VM
                     lastWrite = a;
                     break;
                 }
-                case Opcodes.TSET:
+                case OpCodes.TSET:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -480,20 +480,22 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.TINIT:
+                case OpCodes.TINIT:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     int c = (int)(ii & 0xFF);
                     var t = (Table)values[a].Object;
                     var initSig = proto.SigTypes[c];
+                    //TODO should convert (cannot add initSig.FLength with sig.VLength)
+                    //TODO check whether we should use sig.Offset instead of b
                     var span = values.Span.Slice(b, initSig.FLength + sig.VLength);
                     t.SetSequence(span, initSig);
                     sig.Clear();
                     break;
                 }
-                case Opcodes.CALL:
-                case Opcodes.CALLC:
+                case OpCodes.CALL:
+                case OpCodes.CALLC:
                 {
                     //Similar logic is also used in FORG. Be consistent whenever CALL/CALLC is updated.
 
@@ -535,8 +537,8 @@ namespace FastLua.VM
                         goto returnFromNativeFunction;
                     }
                 }
-                case Opcodes.VARG:
-                case Opcodes.VARGC:
+                case OpCodes.VARG:
+                case OpCodes.VARGC:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -561,7 +563,7 @@ namespace FastLua.VM
                         sig.DiscardVararg(in values);
                     }
 
-                    if ((Opcodes)(ii >> 24) == Opcodes.VARGC)
+                    if ((OpCodes)(ii >> 24) == OpCodes.VARGC)
                     {
                         sig.Clear();
                         lastWrite = 0;
@@ -572,7 +574,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.VARG1:
+                case OpCodes.VARG1:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     if (stack[0].VarargInfo.VarargLength == 0)
@@ -585,12 +587,12 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.JMP:
+                case OpCodes.JMP:
                 {
                     pc += (short)(ushort)(ii & 0xFFFF);
                     break;
                 }
-                case Opcodes.FORI:
+                case OpCodes.FORI:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     ForceConvDouble(ref values[a]);
@@ -616,7 +618,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.FORL:
+                case OpCodes.FORL:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     //Treat the values as double.
@@ -640,7 +642,7 @@ namespace FastLua.VM
                     }
                     break;
                 }
-                case Opcodes.FORG:
+                case OpCodes.FORG:
                 {
                     //Similar logic is also used in CALL/CALLC. Be consistent whenever this is updated.
 
@@ -685,13 +687,13 @@ namespace FastLua.VM
                         goto returnFromNativeFunction;
                     }
                 }
-                case Opcodes.RET0:
+                case OpCodes.RET0:
                 {
                     //No need to pass anything to caller.
                     sig.Type = StackSignature.Empty;
                     goto returnFromLuaFunction;
                 }
-                case Opcodes.RETN:
+                case OpCodes.RETN:
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
@@ -782,13 +784,13 @@ namespace FastLua.VM
             }
 
             ii = proto.Instructions[pc - 1];
-            switch ((Opcodes)(ii >> 24))
+            switch ((OpCodes)(ii >> 24))
             {
-            case Opcodes.CALLC:
+            case OpCodes.CALLC:
                 sig.Clear();
                 lastWrite = 0;
                 break;
-            case Opcodes.FORG:
+            case OpCodes.FORG:
                 sig.Clear();
                 lastWrite = 0;
 

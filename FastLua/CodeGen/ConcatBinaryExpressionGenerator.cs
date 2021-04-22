@@ -59,7 +59,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.CAT, dest.Offset, begin, end);
+            writer.WriteUUU(OpCodes.CAT, dest.Offset, begin, end);
         }
 
         private static void ExtractConcatList(GeneratorFactory factory, BlockGenerator block,

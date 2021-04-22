@@ -103,7 +103,7 @@ namespace FastLua.CodeGen
                 _varargExpr.EmitPrep(writer);
                 _varargExpr.EmitGet(writer, _varargStack, _varargSig, keepSig: true);
             }
-            writer.WriteUUU(Opcodes.RETN, _retSig, _sigFragment.Offset, 0);
+            writer.WriteUUU(OpCodes.RETN, _retSig, _sigFragment.Offset, 0);
         }
     }
 }

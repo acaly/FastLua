@@ -29,7 +29,7 @@ namespace FastLua.CodeGen
             
             _block.Emit(writer);
 
-            writer.WriteUSx(Opcodes.JMP, 0, 0);
+            writer.WriteUSx(OpCodes.JMP, 0, 0);
             writer.AddLabelFix(restartLabel, InstructionWriter.FixUSxJump);
 
             writer.MarkLabel(_exitLabel);

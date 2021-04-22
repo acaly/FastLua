@@ -66,14 +66,14 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUS(Opcodes.FORG, _hiddenVariableStack.Offset, _loopVarSig, 0);
+            writer.WriteUUS(OpCodes.FORG, _hiddenVariableStack.Offset, _loopVarSig, 0);
             writer.AddLabelFix(exitLabel, InstructionWriter.FixUUSJump);
 
             //Emit inner block.
             _forBlock.EmitStatements(writer);
 
             //Jump back.
-            writer.WriteUSx(Opcodes.JMP, 0, 0);
+            writer.WriteUSx(OpCodes.JMP, 0, 0);
             writer.AddLabelFix(loopLabel, InstructionWriter.FixUSxJump);
 
             writer.MarkLabel(exitLabel);

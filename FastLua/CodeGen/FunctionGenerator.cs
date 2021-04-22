@@ -105,14 +105,14 @@ namespace FastLua.CodeGen
             if (instructions.Count > 0)
             {
                 var (opcode, _, _, _) = instructions.ReadUUU(instructions.Count - 1);
-                if (opcode == Opcodes.RET0 || opcode == Opcodes.RETN)
+                if (opcode == OpCodes.RET0 || opcode == OpCodes.RETN)
                 {
                     hasRet = true;
                 }
             }
             if (!hasRet)
             {
-                instructions.WriteUUU(Opcodes.RET0, 0, 0, 0);
+                instructions.WriteUUU(OpCodes.RET0, 0, 0, 0);
             }
 
             //Fix jumps.

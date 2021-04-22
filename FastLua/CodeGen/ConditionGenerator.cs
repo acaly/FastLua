@@ -11,7 +11,7 @@ namespace FastLua.CodeGen
     internal sealed class ConditionGenerator
     {
         private readonly bool _isComparison;
-        private readonly Opcodes _opcode;
+        private readonly OpCodes _opcode;
         private readonly ExpressionGenerator _expr1, _expr2;
         private readonly AllocatedLocal _expr1Stack, _expr2Stack;
         private readonly bool _exchangeComparison; //`expr2 cmp expr1` instead of `expr1 cmp expr2`
@@ -48,7 +48,7 @@ namespace FastLua.CodeGen
             else
             {
                 //Normally use ISFC (jump to falseLabel if false).
-                _opcode = reverseCondition ? Opcodes.ISTC : Opcodes.ISFC;
+                _opcode = reverseCondition ? OpCodes.ISTC : OpCodes.ISFC;
 
                 _expr1 = factory.CreateExpression(block, expr);
                 if (!_expr1.TryGetFromStack(out _))
@@ -63,32 +63,32 @@ namespace FastLua.CodeGen
             factory.Function.CheckStatementState();
         }
 
-        private static bool IsComparisonExpr(BinaryExpressionSyntaxNode expr, out Opcodes op, out bool exchanged)
+        private static bool IsComparisonExpr(BinaryExpressionSyntaxNode expr, out OpCodes op, out bool exchanged)
         {
             switch (expr.Operator.V)
             {
             case BinaryOperator.Raw.L:
-                op = Opcodes.ISLT;
+                op = OpCodes.ISLT;
                 exchanged = false;
                 return true;
             case BinaryOperator.Raw.LE:
-                op = Opcodes.ISLE;
+                op = OpCodes.ISLE;
                 exchanged = false;
                 return true;
             case BinaryOperator.Raw.G:
-                op = Opcodes.ISLT;
+                op = OpCodes.ISLT;
                 exchanged = true;
                 return true;
             case BinaryOperator.Raw.GE:
-                op = Opcodes.ISLE;
+                op = OpCodes.ISLE;
                 exchanged = true;
                 return true;
             case BinaryOperator.Raw.E:
-                op = Opcodes.ISEQ;
+                op = OpCodes.ISEQ;
                 exchanged = false;
                 return true;
             case BinaryOperator.Raw.NE:
-                op = Opcodes.ISNE;
+                op = OpCodes.ISNE;
                 exchanged = false;
                 return true;
             default:
@@ -98,16 +98,16 @@ namespace FastLua.CodeGen
             }
         }
 
-        private static void ReverseComparisonResult(ref Opcodes op)
+        private static void ReverseComparisonResult(ref OpCodes op)
         {
             op = op switch
             {
-                Opcodes.ISLT => Opcodes.ISNLT,
-                Opcodes.ISLE => Opcodes.ISNLE,
-                Opcodes.ISNLT => Opcodes.ISLT,
-                Opcodes.ISNLE => Opcodes.ISLE,
-                Opcodes.ISNE => Opcodes.ISEQ,
-                _ => Opcodes.ISNE, //ISEQ
+                OpCodes.ISLT => OpCodes.ISNLT,
+                OpCodes.ISLE => OpCodes.ISNLE,
+                OpCodes.ISNLT => OpCodes.ISLT,
+                OpCodes.ISNLE => OpCodes.ISLE,
+                OpCodes.ISNE => OpCodes.ISEQ,
+                _ => OpCodes.ISNE, //ISEQ
             };
         }
 

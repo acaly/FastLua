@@ -19,7 +19,7 @@ namespace FastLua.CodeGen
 
         public override void Emit(InstructionWriter writer)
         {
-            writer.WriteUSx(Opcodes.JMP, 0, 0);
+            writer.WriteUSx(OpCodes.JMP, 0, 0);
             writer.AddLabelFix(_label, InstructionWriter.FixUSxJump);
         }
     }

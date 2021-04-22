@@ -239,14 +239,14 @@ namespace FastLua.CodeGen
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(Opcodes.K, _keyTempSlot.Offset, _keyConstant, 0);
+                writer.WriteUUU(OpCodes.K, _keyTempSlot.Offset, _keyConstant, 0);
 
                 //Evaluate function using TGET.
                 if (_funcTempSlot.Offset > 255 || tableSlot.Offset > 255)
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(Opcodes.TGET, _funcTempSlot.Offset, tableSlot.Offset, _keyTempSlot.Offset);
+                writer.WriteUUU(OpCodes.TGET, _funcTempSlot.Offset, tableSlot.Offset, _keyTempSlot.Offset);
                 functionSlot = _funcTempSlot;
                 pushParamStart = 1;
             }
@@ -274,7 +274,7 @@ namespace FastLua.CodeGen
             }
 
             //Call!
-            var opcode = keepSig ? Opcodes.CALL : Opcodes.CALLC;
+            var opcode = keepSig ? OpCodes.CALL : OpCodes.CALLC;
             if (functionSlot.Offset > 255 || _mergedArgSigIndex > 255 || sig > 255)
             {
                 throw new NotImplementedException();
@@ -292,7 +292,7 @@ namespace FastLua.CodeGen
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(Opcodes.MOV, dest, _mergedSigFragment.Offset, 0);
+                writer.WriteUUU(OpCodes.MOV, dest, _mergedSigFragment.Offset, 0);
             }
         }
     }

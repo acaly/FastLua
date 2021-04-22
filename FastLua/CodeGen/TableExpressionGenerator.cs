@@ -100,7 +100,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.TNEW, dest.Offset, 0, 0);
+            writer.WriteUUU(OpCodes.TNEW, dest.Offset, 0, 0);
             bool hasSeq = false;
             foreach (var (v, vs_, k, ks_) in _fields)
             {
@@ -128,7 +128,7 @@ namespace FastLua.CodeGen
                     {
                         throw new NotImplementedException();
                     }
-                    writer.WriteUUU(Opcodes.TSET, vs.Offset, dest.Offset, ks.Offset);
+                    writer.WriteUUU(OpCodes.TSET, vs.Offset, dest.Offset, ks.Offset);
                 }
             }
             if (_varargVal is not null)
@@ -142,7 +142,7 @@ namespace FastLua.CodeGen
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(Opcodes.TINIT, dest.Offset, _seqStack.Offset, _sig);
+                writer.WriteUUU(OpCodes.TINIT, dest.Offset, _seqStack.Offset, _sig);
             }
         }
 

@@ -11,7 +11,7 @@ namespace FastLua.CodeGen
     class ComparisonBinaryExpressionGenerator : BinaryExpressionGenerator
     {
         private readonly bool _isReversed;
-        private readonly Opcodes _opcode;
+        private readonly OpCodes _opcode;
         private readonly int _true, _false;
 
         public ComparisonBinaryExpressionGenerator(GeneratorFactory factory, BlockGenerator block,
@@ -31,18 +31,18 @@ namespace FastLua.CodeGen
         }
 
         private static ExpressionGenerator CheckSwap(GeneratorFactory factory, BlockGenerator block,
-            BinaryExpressionSyntaxNode expr, out ExpressionGenerator r, out Opcodes op, out bool reversed)
+            BinaryExpressionSyntaxNode expr, out ExpressionGenerator r, out OpCodes op, out bool reversed)
         {
             var left = factory.CreateExpression(block, expr.Left);
             var right = factory.CreateExpression(block, expr.Right);
             op = expr.Operator.V switch
             {
-                BinaryOperator.Raw.G => Opcodes.ISLT,
-                BinaryOperator.Raw.GE => Opcodes.ISLE,
-                BinaryOperator.Raw.L => Opcodes.ISLT,
-                BinaryOperator.Raw.LE => Opcodes.ISLE,
-                BinaryOperator.Raw.E => Opcodes.ISEQ,
-                BinaryOperator.Raw.NE => Opcodes.ISNE,
+                BinaryOperator.Raw.G => OpCodes.ISLT,
+                BinaryOperator.Raw.GE => OpCodes.ISLE,
+                BinaryOperator.Raw.L => OpCodes.ISLT,
+                BinaryOperator.Raw.LE => OpCodes.ISLE,
+                BinaryOperator.Raw.E => OpCodes.ISEQ,
+                BinaryOperator.Raw.NE => OpCodes.ISNE,
                 _ => throw new Exception(),
             };
             reversed = expr.Operator.V == BinaryOperator.Raw.G || expr.Operator.V == BinaryOperator.Raw.GE;
@@ -81,11 +81,11 @@ namespace FastLua.CodeGen
 
             writer.WriteUUS(_opcode, leftStack.Offset, rightStack.Offset, 0);
             writer.AddLabelFix(trueLabel, InstructionWriter.FixUUSJump);
-            writer.WriteUUU(Opcodes.K, dest.Offset, _false, 0);
-            writer.WriteUSx(Opcodes.JMP, 0, 0);
+            writer.WriteUUU(OpCodes.K, dest.Offset, _false, 0);
+            writer.WriteUSx(OpCodes.JMP, 0, 0);
             writer.AddLabelFix(exitLabel, InstructionWriter.FixUSxJump);
             writer.MarkLabel(trueLabel);
-            writer.WriteUUU(Opcodes.K, dest.Offset, _true, 0);
+            writer.WriteUUU(OpCodes.K, dest.Offset, _true, 0);
             writer.MarkLabel(exitLabel);
         }
     }

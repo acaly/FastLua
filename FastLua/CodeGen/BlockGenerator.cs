@@ -72,7 +72,7 @@ namespace FastLua.CodeGen
                 {
                     throw new NotImplementedException();
                 }
-                writer.WriteUUU(Opcodes.UNEW, stack.Offset, count, 0);
+                writer.WriteUUU(OpCodes.UNEW, stack.Offset, count, 0);
             }
         }
 

@@ -11,7 +11,7 @@ namespace FastLua.CodeGen
     {
         public override void Emit(InstructionWriter writer)
         {
-            writer.WriteUUU(Opcodes.RET0, 0, 0, 0);
+            writer.WriteUUU(OpCodes.RET0, 0, 0, 0);
         }
     }
 }

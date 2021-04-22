@@ -11,7 +11,7 @@ namespace FastLua.CodeGen
 {
     internal sealed class NumericForStatementGenerator : StatementGenerator
     {
-        private readonly Opcodes _initOp, _loopOp;
+        private readonly OpCodes _initOp, _loopOp;
         private readonly ExpressionGenerator _e1, _e2, _e3;
         private readonly AllocatedLocal _e1Stack, _e2Stack, _e3Stack;
         private readonly BlockGenerator _forBlock; //Need this to handle loop var as upval.
@@ -33,8 +33,8 @@ namespace FastLua.CodeGen
                 e2t == VMSpecializationType.Polymorphic &&
                 e3t == VMSpecializationType.Polymorphic)
             {
-                _initOp = Opcodes.FORI;
-                _loopOp = Opcodes.FORL;
+                _initOp = OpCodes.FORI;
+                _loopOp = OpCodes.FORL;
             }
             else
             {
@@ -84,7 +84,7 @@ namespace FastLua.CodeGen
             //Start of the actual block (creates upvals).
             _forBlock.EmitUpvalLists(writer);
             //Copy hidden control variable to the visible loop var.
-            writer.WriteUUU(Opcodes.MOV, _loopVar.Offset, _e1Stack.Offset, 0);
+            writer.WriteUUU(OpCodes.MOV, _loopVar.Offset, _e1Stack.Offset, 0);
 
             //Emit inner aux block.
             _forBlock.EmitStatements(writer);

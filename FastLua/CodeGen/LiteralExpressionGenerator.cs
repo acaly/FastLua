@@ -48,7 +48,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.K, dest.Offset, _constIndex, 0);
+            writer.WriteUUU(OpCodes.K, dest.Offset, _constIndex, 0);
         }
 
         public override void EmitDiscard(InstructionWriter writer)

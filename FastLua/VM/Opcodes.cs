@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace FastLua.VM
 {
-    public enum Opcodes
+    public enum OpCodes
     {
         NOP,
+        INV,
 
         //Comparison.
 
@@ -77,12 +78,6 @@ namespace FastLua.VM
         FORI,
         FORL,
         FORG,
-
-        //Signature block.
-
-        //This is no longer used as an independent instruction.
-        //CALL/CALLC/VARG/VARGC/RETN contain the same functionality.
-        //SIG,
 
         //Return.
         //Note: there must be a ret as the last instruction. This

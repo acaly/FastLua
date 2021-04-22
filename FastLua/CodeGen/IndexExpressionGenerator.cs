@@ -32,7 +32,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.TGET, dest.Offset, leftStack.Offset, rightStack.Offset);
+            writer.WriteUUU(OpCodes.TGET, dest.Offset, leftStack.Offset, rightStack.Offset);
         }
     }
 }

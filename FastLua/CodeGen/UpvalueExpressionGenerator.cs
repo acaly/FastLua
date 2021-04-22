@@ -42,7 +42,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.UGET, destIndex, listOffset, _index);
+            writer.WriteUUU(OpCodes.UGET, destIndex, listOffset, _index);
         }
 
         public override void EmitSet(InstructionWriter writer, AllocatedLocal src, VMSpecializationType type)
@@ -57,7 +57,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.USET, srcIndex, listOffset, _index);
+            writer.WriteUUU(OpCodes.USET, srcIndex, listOffset, _index);
         }
 
         public override void EmitDiscard(InstructionWriter writer)

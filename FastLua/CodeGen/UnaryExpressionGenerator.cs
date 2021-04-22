@@ -62,13 +62,13 @@ namespace FastLua.CodeGen
             switch (_operator)
             {
             case UnaryOperator.Neg:
-                writer.WriteUUU(Opcodes.NEG, destIndex, operand, 0);
+                writer.WriteUUU(OpCodes.NEG, destIndex, operand, 0);
                 break;
             case UnaryOperator.Not:
-                writer.WriteUUU(Opcodes.NOT, destIndex, operand, 0);
+                writer.WriteUUU(OpCodes.NOT, destIndex, operand, 0);
                 break;
             case UnaryOperator.Num:
-                writer.WriteUUU(Opcodes.LEN, destIndex, operand, 0);
+                writer.WriteUUU(OpCodes.LEN, destIndex, operand, 0);
                 break;
             }
         }

@@ -134,29 +134,6 @@ namespace FastLua.VM
             }
         }
 
-        internal int MoveVararg(in StackFrameValues values, Span<TypedValue> storage)
-        {
-            if (!Type.Vararg.HasValue)
-            {
-                DiscardVararg(in values);
-                return 0;
-            }
-
-            var start = Offset + Type.FLength;
-            var len = Math.Min(VLength, storage.Length);
-            for (int i = 0; i < len; ++i)
-            {
-                storage[i] = values[start + i];
-                values[start + i].Object = null;
-            }
-            for (int i = len; i < VLength; ++i)
-            {
-                values[start + i].Object = null;
-            }
-
-            return len;
-        }
-
         internal void DiscardVararg(in StackFrameValues values)
         {
             if (VLength > 0)

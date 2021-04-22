@@ -44,7 +44,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.VARG1, dest.Offset, 0, 0);
+            writer.WriteUUU(OpCodes.VARG1, dest.Offset, 0, 0);
         }
 
         public override void EmitGet(InstructionWriter writer, IStackFragment sigBlock, int sigIndex, bool keepSig)
@@ -54,7 +54,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(keepSig ? Opcodes.VARG : Opcodes.VARGC, sigIndex, sigBlock.Offset, 0);
+            writer.WriteUUU(keepSig ? OpCodes.VARG : OpCodes.VARGC, sigIndex, sigBlock.Offset, 0);
         }
 
         public override void WritSig(SignatureWriter writer)

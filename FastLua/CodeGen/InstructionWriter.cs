@@ -31,88 +31,88 @@ namespace FastLua.CodeGen
             }
         }
 
-        private static uint MakeUUU(Opcodes opcode, int a, int b, int c)
+        private static uint MakeUUU(OpCodes opcode, int a, int b, int c)
         {
             return (uint)opcode << 24 | (uint)a << 16 | (uint)b << 8 | (uint)c;
         }
 
-        private static uint MakeUUS(Opcodes opcode, int a, int b, int c)
+        private static uint MakeUUS(OpCodes opcode, int a, int b, int c)
         {
             return (uint)opcode << 24 | (uint)a << 16 | (uint)b << 8 | (byte)(sbyte)c;
         }
 
-        private static uint MakeUSx(Opcodes opcode, int a, int b)
+        private static uint MakeUSx(OpCodes opcode, int a, int b)
         {
             return (uint)opcode << 24 | (uint)a << 16 | (ushort)(short)b;
         }
 
-        private static (Opcodes, int, int, int) DeconstructUUU(uint inst)
+        private static (OpCodes, int, int, int) DeconstructUUU(uint inst)
         {
-            var o = (Opcodes)(inst >> 24);
+            var o = (OpCodes)(inst >> 24);
             var a = (int)((inst >> 16) & 0xFF);
             var b = (int)((inst >> 8) & 0xFF);
             var c = (int)((inst >> 0) & 0xFF);
             return (o, a, b, c);
         }
 
-        private static (Opcodes, int, int, int) DeconstructUUS(uint inst)
+        private static (OpCodes, int, int, int) DeconstructUUS(uint inst)
         {
-            var o = (Opcodes)(inst >> 24);
+            var o = (OpCodes)(inst >> 24);
             var a = (int)((inst >> 16) & 0xFF);
             var b = (int)((inst >> 8) & 0xFF);
             var c = (int)(sbyte)(byte)((inst >> 0) & 0xFF);
             return (o, a, b, c);
         }
 
-        private static (Opcodes, int, int) DeconstructUSx(uint inst)
+        private static (OpCodes, int, int) DeconstructUSx(uint inst)
         {
-            var o = (Opcodes)(inst >> 24);
+            var o = (OpCodes)(inst >> 24);
             var a = (int)((inst >> 16) & 0xFF);
             var b = (short)(ushort)(inst & 0xFFFF);
             return (o, a, b);
         }
 
-        public void WriteUUU(Opcodes opcode, int a, int b, int c)
+        public void WriteUUU(OpCodes opcode, int a, int b, int c)
         {
             _instructions.Add(MakeUUU(opcode, a, b, c));
         }
 
-        public void WriteUUS(Opcodes opcode, int a, int b, int c)
+        public void WriteUUS(OpCodes opcode, int a, int b, int c)
         {
             _instructions.Add(MakeUUS(opcode, a, b, c));
         }
 
-        public void WriteUSx(Opcodes opcode, int a, int b)
+        public void WriteUSx(OpCodes opcode, int a, int b)
         {
             _instructions.Add(MakeUSx(opcode, a, b));
         }
 
-        public (Opcodes, int, int, int) ReadUUU(int index)
+        public (OpCodes, int, int, int) ReadUUU(int index)
         {
             return DeconstructUUU(_instructions[index]);
         }
 
-        public (Opcodes, int, int, int) ReadUUS(int index)
+        public (OpCodes, int, int, int) ReadUUS(int index)
         {
             return DeconstructUUS(_instructions[index]);
         }
 
-        public (Opcodes, int, int) ReadUSx(int index)
+        public (OpCodes, int, int) ReadUSx(int index)
         {
             return DeconstructUSx(_instructions[index]);
         }
 
-        public void ReplaceUUU(int index, Opcodes opcode, int a, int b, int c)
+        public void ReplaceUUU(int index, OpCodes opcode, int a, int b, int c)
         {
             _instructions[index] = MakeUUU(opcode, a, b, c);
         }
 
-        public void ReplaceUUS(int index, Opcodes opcode, int a, int b, int c)
+        public void ReplaceUUS(int index, OpCodes opcode, int a, int b, int c)
         {
             _instructions[index] = MakeUUS(opcode, a, b, c);
         }
 
-        public void ReplaceUSx(int index, Opcodes opcode, int a, int b)
+        public void ReplaceUSx(int index, OpCodes opcode, int a, int b)
         {
             _instructions[index] = MakeUSx(opcode, a, b);
         }

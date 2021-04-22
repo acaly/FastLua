@@ -69,7 +69,7 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            writer.WriteUUU(Opcodes.TSET, src.Offset, tableStack.Offset, keyStack.Offset);
+            writer.WriteUUU(OpCodes.TSET, src.Offset, tableStack.Offset, keyStack.Offset);
         }
 
         public override void EmitGet(InstructionWriter writer, AllocatedLocal dest)

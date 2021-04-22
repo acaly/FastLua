@@ -12,7 +12,7 @@ namespace FastLua.CodeGen
     internal class AndOrExpressionGenerator : ExpressionGenerator
     {
         private readonly VMSpecializationType _type;
-        private readonly Opcodes _opcode;
+        private readonly OpCodes _opcode;
         private readonly ExpressionGenerator _left, _right;
         private readonly AllocatedLocal? _leftStack, _rightStack;
 
@@ -30,7 +30,7 @@ namespace FastLua.CodeGen
             {
                 _rightStack = block.TempAllocator.Allocate(_right.GetSingleType());
             }
-            _opcode = expr.Operator.V == BinaryOperator.Raw.And ? Opcodes.ISFC : Opcodes.ISTC;
+            _opcode = expr.Operator.V == BinaryOperator.Raw.And ? OpCodes.ISFC : OpCodes.ISTC;
         }
 
         public override bool TryGetSingleType(out VMSpecializationType type)
