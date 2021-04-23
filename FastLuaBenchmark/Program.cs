@@ -91,7 +91,7 @@ namespace FastLuaBenchmark
             return 1;
         }
 
-        [Benchmark]
+        [Benchmark(Baseline = true)]
         public double FastLua()
         {
             LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, 0, 0);
@@ -99,7 +99,7 @@ namespace FastLuaBenchmark
             return ret.NumberVal;
         }
 
-        [Benchmark(Baseline = true)]
+        [Benchmark]
         public double MoonSharp()
         {
             return _moonSharpClosure.Call().Number;
