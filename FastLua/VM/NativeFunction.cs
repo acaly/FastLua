@@ -54,10 +54,10 @@ namespace FastLua.VM
         }
     }
 
-    public readonly struct AsyncStackInfo
+    public struct AsyncStackInfo
     {
         internal readonly Thread Thread;
-        internal readonly int StackFrame;
+        internal int StackFrame;
 
         internal AsyncStackInfo(Thread thread, int frame)
         {
@@ -66,36 +66,36 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal StackFrameValues GetFrameValues()
+        internal readonly StackFrameValues GetFrameValues()
         {
             return Thread.GetFrameValues(ref Thread.GetFrame(StackFrame));
         }
 
-        public void Write(int start, ReadOnlySpan<TypedValue> values)
+        public readonly void Write(int start, ReadOnlySpan<TypedValue> values)
         {
             var frameValues = GetFrameValues();
             values.CopyTo(frameValues.Span[start..]);
         }
 
-        public void Write(int start, in TypedValue values)
+        public readonly void Write(int start, in TypedValue values)
         {
             Write(start, MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in values), 1));
         }
 
-        public void Read(int start, Span<TypedValue> values)
+        public readonly void Read(int start, Span<TypedValue> values)
         {
             var frameValues = GetFrameValues();
             var copyLen = Math.Min(frameValues.Span.Length - start, values.Length);
             frameValues.Span.Slice(start, copyLen).CopyTo(values);
         }
 
-        public void Read(int start, out TypedValue value)
+        public readonly void Read(int start, out TypedValue value)
         {
             value = TypedValue.Nil;
             Read(start, MemoryMarshal.CreateSpan(ref value, 1));
         }
 
-        public void Reallocate(int newSize)
+        public readonly void Reallocate(int newSize)
         {
             Thread.ReallocateFrameInternal(ref Thread.GetFrame(StackFrame), newSize);
         }

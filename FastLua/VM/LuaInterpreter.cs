@@ -69,7 +69,12 @@ namespace FastLua.VM
             var sig = parentSig;
             sig.Offset = 0; //Args are at the beginning in the new frame.
 
+            StackInfo nextNativeStackInfo = default;
+            nextNativeStackInfo.AsyncStackInfo = thread.ConvertToNativeFrame(ref stack[0]);
+
         enterNewLuaFrame:
+            nextNativeStackInfo.AsyncStackInfo.StackFrame += 1;
+
             var values = thread.GetFrameValues(ref stack[0]);
 
             //Adjust argument list according to the requirement of the callee.
@@ -676,23 +681,18 @@ namespace FastLua.VM
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
-                //TODO use non-inlined version (AdjustRightToEmptyV)
-                //sig.AdjustRightToEmptyV(in values);
-                if (sig.Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
+                if (!sig.Type.IsUnspecialized)
                 {
-                    if (!sig.Type.IsUnspecialized)
-                    {
-                        sig.Type.AdjustStackToUnspecialized(in values);
-                    }
-                    sig.VLength = sig.TotalLength;
-                    sig.Type = proto.SigTypes[(int)WellKnownStackSignature.EmptyV]; //9% overhead
+                    sig.Type.AdjustStackToUnspecialized(in values);
                 }
 
                 //Call native function.
 
                 //Update sig VLength (it will be adjusted later).
                 //Note that Type and Offset don't need to change.
-                sig.VLength = nativeFunc(new(thread.ConvertToNativeFrame(ref nativeFrame[0])), sig.VLength);
+                nextNativeStackInfo.Values = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
+                sig.VLength = nativeFunc(nextNativeStackInfo, sig.TotalLength);
+                sig.Type = StackSignature.EmptyV;
                 thread.DeallocateFrame(ref nativeFrame);
             }
             else if (nonLuaFunc is AsyncNativeFunctionDelegate asyncNativeFunc)
@@ -730,6 +730,7 @@ namespace FastLua.VM
             //Lua-C# boundary, after.
 
             //Check Lua stack relocation.
+            //TODO this is slow, need to optimize
             if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0])[0]))
             {
                 pc += 1;
@@ -742,6 +743,8 @@ namespace FastLua.VM
 
         returnFromLuaFunction:
             //Jump target when exiting a Lua frame (to either another Lua frame or a native frame).
+
+            nextNativeStackInfo.AsyncStackInfo.StackFrame -= 1;
 
             //Clear object stack to avoid memory leak.
             if (stack[0].ActualOnSameSegment)
