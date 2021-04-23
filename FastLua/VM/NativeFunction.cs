@@ -19,7 +19,7 @@ namespace FastLua.VM
         public StackInfo(AsyncStackInfo asyncStackInfo)
         {
             AsyncStackInfo = asyncStackInfo;
-            Values = AsyncStackInfo.GetFrameValues();
+            Values.Span = AsyncStackInfo.GetFrameValues();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -50,7 +50,7 @@ namespace FastLua.VM
         public void Reallocate(int newSize)
         {
             AsyncStackInfo.Reallocate(newSize);
-            Values = AsyncStackInfo.GetFrameValues();
+            Values.Span = AsyncStackInfo.GetFrameValues();
         }
     }
 
@@ -66,15 +66,14 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal readonly StackFrameValues GetFrameValues()
+        internal readonly Span<TypedValue> GetFrameValues()
         {
-            return Thread.GetFrameValues(ref Thread.GetFrame(StackFrame));
+            return Thread.GetFrameValues(in Thread.GetFrame(StackFrame));
         }
 
         public readonly void Write(int start, ReadOnlySpan<TypedValue> values)
         {
-            var frameValues = GetFrameValues();
-            values.CopyTo(frameValues.Span[start..]);
+            values.CopyTo(GetFrameValues()[start..]);
         }
 
         public readonly void Write(int start, in TypedValue values)
@@ -85,8 +84,8 @@ namespace FastLua.VM
         public readonly void Read(int start, Span<TypedValue> values)
         {
             var frameValues = GetFrameValues();
-            var copyLen = Math.Min(frameValues.Span.Length - start, values.Length);
-            frameValues.Span.Slice(start, copyLen).CopyTo(values);
+            var copyLen = Math.Min(frameValues.Length - start, values.Length);
+            frameValues.Slice(start, copyLen).CopyTo(values);
         }
 
         public readonly void Read(int start, out TypedValue value)

@@ -7,9 +7,9 @@ using System.Text;
 
 namespace FastLua.VM
 {
-    internal readonly ref struct StackFrameValues
+    internal ref struct StackFrameValues
     {
-        public readonly Span<TypedValue> Span;
+        public Span<TypedValue> Span;
 
         public StackFrameValues(Span<TypedValue> span)
         {

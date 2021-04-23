@@ -124,8 +124,6 @@ namespace FastLua.VM
 
         public void MoveVararg(in StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
         {
-            //Debug.Assert(TypeId.Vararg.HasValue);
-
             varargInfo.VarargStart = storage.Count;
             varargInfo.VarargLength = VLength;
             VLength = 0;

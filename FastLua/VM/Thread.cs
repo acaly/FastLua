@@ -35,9 +35,9 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal StackFrameValues GetFrameValues(ref StackFrame frame)
+        internal Span<TypedValue> GetFrameValues(in StackFrame frame)
         {
-            return new(new(_segments[frame.Segment], frame.Offset, frame.Length));
+            return new(_segments[frame.Segment], frame.Offset, frame.Length);
         }
 
         internal ref StackFrame GetFrame(int index)
