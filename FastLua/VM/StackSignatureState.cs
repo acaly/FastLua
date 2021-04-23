@@ -40,14 +40,6 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetUnspecializedVararg(int start, int length)
-        {
-            Type = StackSignature.EmptyV;
-            Offset = start;
-            VLength = length;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             this = default;
@@ -67,16 +59,15 @@ namespace FastLua.VM
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AdjustRightToEmptyV(in StackFrameValues values)
         {
-            if (Type.GlobalId == (ulong)WellKnownStackSignature.EmptyV)
+            if (Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
             {
-                return;
+                if (!Type.IsUnspecialized)
+                {
+                    Type.AdjustStackToUnspecialized(in values);
+                }
+                VLength = TotalLength;
+                Type = StackSignature.EmptyV;
             }
-            if (!Type.IsUnspecialized)
-            {
-                Type.AdjustStackToUnspecialized(in values);
-            }
-            VLength = TotalLength;
-            Type = StackSignature.EmptyV;
         }
 
         //Vararg part is always kept. Caller must use DiscardVararg/MoveVararg to clear them

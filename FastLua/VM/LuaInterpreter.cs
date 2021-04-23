@@ -665,7 +665,6 @@ namespace FastLua.VM
             }
 
         callNonLuaFunction:
-            int retSize;
             if (nonLuaFunc is NativeFunctionDelegate nativeFunc)
             {
                 //Lua-C# boundary, before.
@@ -677,10 +676,23 @@ namespace FastLua.VM
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
-                sig.AdjustRightToEmptyV(in values);
+                //TODO use non-inlined version (AdjustRightToEmptyV)
+                //sig.AdjustRightToEmptyV(in values);
+                if (sig.Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
+                {
+                    if (!sig.Type.IsUnspecialized)
+                    {
+                        sig.Type.AdjustStackToUnspecialized(in values);
+                    }
+                    sig.VLength = sig.TotalLength;
+                    sig.Type = proto.SigTypes[(int)WellKnownStackSignature.EmptyV]; //9% overhead
+                }
 
                 //Call native function.
-                retSize = nativeFunc(new(thread.ConvertToNativeFrame(ref nativeFrame[0])), sig.VLength);
+
+                //Update sig VLength (it will be adjusted later).
+                //Note that Type and Offset don't need to change.
+                sig.VLength = nativeFunc(new(thread.ConvertToNativeFrame(ref nativeFrame[0])), sig.VLength);
                 thread.DeallocateFrame(ref nativeFrame);
             }
             else if (nonLuaFunc is AsyncNativeFunctionDelegate asyncNativeFunc)
@@ -704,7 +716,7 @@ namespace FastLua.VM
                     throw new NotImplementedException();
                 }
 
-                retSize = retTask.Result;
+                sig.VLength = retTask.Result;
                 thread.DeallocateFrame(ref nativeFrame);
             }
             else
@@ -717,11 +729,8 @@ namespace FastLua.VM
 
             //Lua-C# boundary, after.
 
-            //Set sig block (this will be adjusted later).
-            sig.SetUnspecializedVararg(sig.Offset, retSize);
-
             //Check Lua stack relocation.
-            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0]).Span[0]))
+            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0])[0]))
             {
                 pc += 1;
                 stack[0].PC = pc;
