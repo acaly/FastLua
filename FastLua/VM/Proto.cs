@@ -15,9 +15,9 @@ namespace FastLua.VM
         public StackSignature[] SigTypes;
 
         //Sig type of all parameters (vararg as a vararg part).
-        public StackSignature ParameterSig;
+        public int ParameterSig;
         //The sig of the vararg param (should be a sig with zero fixed length).
-        public StackSignature VarargSig;
+        public int VarargSig;
 
         public int StackSize;
 

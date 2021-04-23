@@ -20,7 +20,12 @@ namespace FastLua.VM
             var values = thread.GetFrameValues(ref stack);
 
             //Set up argument type info for Lua function.
-            var sig = new StackSignatureState(argOffset, argSize);
+            var sig = new InterFrameSignatureState
+            {
+                Type = StackSignature.EmptyV,
+                Offset = argOffset,
+                VLength = argSize,
+            };
             try
             {
                 //For simplicity, C#-Lua call always passes arguments in same segment.
@@ -45,46 +50,43 @@ namespace FastLua.VM
 
             //C#-Lua boundary: after.
 
-            if (sig.Type is not null)
-            {
-                sig.AdjustRightToEmptyV(in values);
-                return sig.VLength;
-            }
-            else
+            if (sig.Type == StackSignature.Empty)
             {
                 return 0;
             }
+            if (!sig.Type.IsUnspecialized)
+            {
+                sig.Type.AdjustStackToUnspecialized(in values);
+                //TODO need some info from AdjustStackToUnspecialized
+                throw new NotImplementedException();
+            }
+            return sig.VLength + sig.Type.FLength;
         }
 
         private static void InterpreterLoop(Thread thread, LClosure closure, ref StackFrame lastFrame,
-            ref StackSignatureState parentSig, bool forceOnSameSeg)
+            ref InterFrameSignatureState parentSig, bool forceOnSameSeg)
         {
             //TODO recover execution
             //TODO in recovery, onSameSeg should be set depending on whether lastFrame's Segment
             //equals this frame's Segment.
 
             var proto = closure.Proto;
-            var stack = thread.AllocateNextFrame(ref lastFrame, in parentSig, proto.StackSize, forceOnSameSeg);
+            var stack = thread.AllocateNextFrame(ref lastFrame, parentSig.Offset, parentSig.TotalLength,
+                proto.StackSize, forceOnSameSeg);
 
-            var sig = parentSig;
-            sig.Offset = 0; //Args are at the beginning in the new frame.
+            //var sig = parentSig;
+            //sig.Offset = 0; //Args are at the beginning in the new frame.
 
             StackInfo nextNativeStackInfo = default;
             nextNativeStackInfo.AsyncStackInfo = thread.ConvertToNativeFrame(ref stack[0]);
 
-        enterNewLuaFrame:
-            nextNativeStackInfo.AsyncStackInfo.StackFrame += 1;
-
-            var values = thread.GetFrameValues(ref stack[0]);
-
-            //Adjust argument list according to the requirement of the callee.
-            //Also remove vararg into separate stack.
-            if (!sig.AdjustRight(in values, proto.ParameterSig))
-            {
-                throw new NotImplementedException();
-            }
+            StackFrameValues values = thread.GetFrameValues(ref stack[0]);
+            StackSignatureState sig = new(in values, parentSig.Type, parentSig.VLength, proto.SigTypes, proto.ParameterSig);
             sig.MoveVararg(in values, thread.VarargStack, ref stack[0].VarargInfo);
             sig.Clear();
+
+        enterNewLuaFrame:
+            nextNativeStackInfo.AsyncStackInfo.StackFrame += 1;
 
             //Push closure's upvals.
             Debug.Assert(closure.UpvalLists.Length <= proto.LocalRegionOffset - proto.UpvalRegionOffset);
@@ -400,15 +402,16 @@ namespace FastLua.VM
                     int l2 = (int)(ii & 0xFF);
                     if (l2 == 0)
                     {
-                        sig.AdjustLeft(in values, proto.SigTypes[l1]);
+                        sig.AdjustLeft(in values, proto.SigTypes, l1);
                     }
                     else
                     {
-                        sig.Type = proto.SigTypes[l1];
+                        sig.TypeId = l1;
+                        sig.FLength = proto.SigTypes[l1].FLength; //TODO can we eliminate this?
                         sig.Offset = l2;
                     }
                     var span = values.Span.Slice(sig.Offset, sig.TotalLength);
-                    ((Table)values[a].Object).SetSequence(span, sig.Type);
+                    ((Table)values[a].Object).SetSequence(span, proto.SigTypes[sig.TypeId]);
                     sig.Clear();
                     break;
                 }
@@ -428,15 +431,15 @@ namespace FastLua.VM
 
                     //Adjust current sig block at the left side.
                     //This allows to merge other arguments that have already been pushed before.
-                    var argSig = proto.SigTypes[l1];
                     if (l2 == 0)
                     {
-                        sig.AdjustLeft(in values, argSig);
+                        sig.AdjustLeft(in values, proto.SigTypes, l1);
                     }
                     else
                     {
+                        sig.TypeId = l1;
+                        sig.FLength = proto.SigTypes[l1].FLength; //TODO can we eliminate this?
                         sig.Offset = l2;
-                        sig.Type = argSig;
                     }
                     var sigStart = sig.Offset;
 
@@ -448,12 +451,22 @@ namespace FastLua.VM
                         thread.ClosureStack.Push(closure);
 
                         //Setup proto, closure, and stack.
+                        var oldSigType = proto.SigTypes[sig.TypeId];
                         closure = lc;
                         proto = lc.Proto;
-                        //TODO is argSig.HasV necessary here?
-                        stack = thread.AllocateNextFrame(ref stack[0], in sig, proto.StackSize,
-                            argSig.Vararg.HasValue || proto.SigTypes[r1].Vararg.HasValue);
+                        stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
+                            proto.StackSize, proto.SigTypes[r1].Vararg.HasValue);
 
+                        values = thread.GetFrameValues(ref stack[0]);
+
+                        //Adjust argument list according to the requirement of the callee.
+                        //Also remove vararg into separate stack.
+                        if (!sig.AdjustRight(in values, -1, oldSigType, proto.SigTypes, proto.ParameterSig))
+                        {
+                            throw new NotImplementedException();
+                        }
+                        sig.MoveVararg(in values, thread.VarargStack, ref stack[0].VarargInfo);
+                        sig.Clear();
                         goto enterNewLuaFrame;
                     }
                     nonLuaFunc = newFuncP;
@@ -467,19 +480,21 @@ namespace FastLua.VM
                     int r3 = (sbyte)(byte)(ii & 0xFF);
 
                     //TODO check whether this will write out of range
-                    var pos = sig.Type is null ? proto.SigRegionOffset : (sig.Offset + sig.TotalLength);
+                    var pos = sig.TypeId == 0 ? proto.SigRegionOffset : (sig.Offset + sig.TotalLength);
                     for (int i = 0; i < stack[0].VarargInfo.VarargLength; ++i)
                     {
                         values[pos + i] = thread.VarargStack[stack[0].VarargInfo.VarargStart + i];
                     }
 
                     //Overwrite sig as a vararg.
-                    sig.Type = proto.VarargSig;
+                    Debug.Assert(proto.SigTypes[proto.VarargSig].FLength == 0);
+                    sig.TypeId = proto.VarargSig;
+                    sig.FLength = 0;
                     sig.Offset = pos;
                     sig.VLength = stack[0].VarargInfo.VarargLength;
 
                     //Then adjust to requested (this is needed in assignment statement).
-                    if (sig.Type == proto.SigTypes[r2])
+                    if (sig.TypeId == r2)
                     {
                         //Fast path.
                         if (sig.VLength >= r3)
@@ -491,16 +506,14 @@ namespace FastLua.VM
                             values.Span.Slice(sig.Offset + sig.TotalLength, r3 - sig.VLength).Fill(TypedValue.Nil);
                             sig.VLength = 0;
                         }
-                        sig.Type = proto.SigTypes[r1];
+                        sig.TypeId = r1;
+                        sig.FLength = proto.SigTypes[r1].FLength; //TODO can we eliminate this?
                     }
                     else
                     {
-                        var adjustmentSuccess = sig.AdjustRight(in values, proto.SigTypes[r1]);
+                        var adjustmentSuccess = sig.AdjustRight(in values,
+                            sig.TypeId, proto.SigTypes[sig.TypeId], proto.SigTypes, r1);
                         Debug.Assert(adjustmentSuccess);
-                    }
-                    if (!proto.SigTypes[r1].Vararg.HasValue)
-                    {
-                        sig.DiscardVararg(in values);
                     }
 
                     if ((OpCodes)(ii >> 24) == OpCodes.VARGC)
@@ -591,7 +604,8 @@ namespace FastLua.VM
                     values[a + 3] = values[a + 1]; //s
                     values[a + 4] = values[a + 2]; //var
 
-                    sig.Type = StackSignature.Polymorphic_2;
+                    sig.TypeId = (int)WellKnownStackSignature.Polymorphic_2;
+                    sig.FLength = 2;
                     sig.Offset = a + 3;
                     sig.VLength = 0;
 
@@ -605,10 +619,22 @@ namespace FastLua.VM
                         thread.ClosureStack.Push(closure);
 
                         //Setup proto, closure, and stack.
+                        var oldSigType = proto.SigTypes[sig.TypeId];
                         closure = lc;
                         proto = lc.Proto;
-                        stack = thread.AllocateNextFrame(ref stack[0], in sig, proto.StackSize, onSameSeg: false);
+                        stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
+                            proto.StackSize, onSameSeg: false);
 
+                        values = thread.GetFrameValues(ref stack[0]);
+
+                        //Adjust argument list according to the requirement of the callee.
+                        //Also remove vararg into separate stack.
+                        if (!sig.AdjustRight(in values, -1, oldSigType, proto.SigTypes, proto.ParameterSig))
+                        {
+                            throw new NotImplementedException();
+                        }
+                        sig.MoveVararg(in values, thread.VarargStack, ref stack[0].VarargInfo);
+                        sig.Clear();
                         goto enterNewLuaFrame;
                     }
                     nonLuaFunc = newFuncP;
@@ -617,7 +643,8 @@ namespace FastLua.VM
                 case OpCodes.RET0:
                 {
                     //No need to pass anything to caller.
-                    sig.Type = StackSignature.Empty;
+                    sig.TypeId = (int)WellKnownStackSignature.Empty;
+                    sig.FLength = 0;
                     goto returnFromLuaFunction;
                 }
                 case OpCodes.RETN:
@@ -628,11 +655,12 @@ namespace FastLua.VM
                     //First adjust sig block.
                     if (l2 == 0)
                     {
-                        sig.AdjustLeft(in values, proto.SigTypes[l1]);
+                        sig.AdjustLeft(in values, proto.SigTypes, l1);
                     }
                     else
                     {
-                        sig.Type = proto.SigTypes[l1];
+                        sig.TypeId = l1;
+                        sig.FLength = proto.SigTypes[l1].FLength; //TODO can we eliminate this?
                         sig.Offset = l2;
                     }
 
@@ -677,22 +705,24 @@ namespace FastLua.VM
                 //Allocate C# frame.
                 //This frame is not too different from a Lua frame.
                 //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
-                var nativeFrame = thread.AllocateNextFrame(ref stack[0], in sig,
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
-                if (!sig.Type.IsUnspecialized)
+                if (!proto.SigTypes[sig.TypeId].IsUnspecialized)
                 {
-                    sig.Type.AdjustStackToUnspecialized(in values);
+                    proto.SigTypes[sig.TypeId].AdjustStackToUnspecialized(in values);
                 }
-
-                //Call native function.
 
                 //Update sig VLength (it will be adjusted later).
                 //Note that Type and Offset don't need to change.
                 nextNativeStackInfo.Values = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
+
+                //Call native function.
                 sig.VLength = nativeFunc(nextNativeStackInfo, sig.TotalLength);
-                sig.Type = StackSignature.EmptyV;
+
+                sig.TypeId = (int)WellKnownStackSignature.EmptyV;
+                sig.FLength = 0;
                 thread.DeallocateFrame(ref nativeFrame);
             }
             else if (nonLuaFunc is AsyncNativeFunctionDelegate asyncNativeFunc)
@@ -702,14 +732,17 @@ namespace FastLua.VM
                 //Allocate C# frame.
                 //This frame is not too different from a Lua frame.
                 //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
-                var nativeFrame = thread.AllocateNextFrame(ref stack[0], in sig,
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
-                sig.AdjustRightToEmptyV(in values);
+                if (!proto.SigTypes[sig.TypeId].IsUnspecialized)
+                {
+                    proto.SigTypes[sig.TypeId].AdjustStackToUnspecialized(in values);
+                }
 
                 //Call native function.
-                var retTask = asyncNativeFunc(thread.ConvertToNativeFrame(ref nativeFrame[0]), sig.VLength);
+                var retTask = asyncNativeFunc(nextNativeStackInfo.AsyncStackInfo, sig.VLength);
                 if (!retTask.IsCompleted)
                 {
                     //Yield (need to save the task).
@@ -717,6 +750,8 @@ namespace FastLua.VM
                 }
 
                 sig.VLength = retTask.Result;
+                sig.TypeId = (int)WellKnownStackSignature.EmptyV;
+                sig.FLength = 0;
                 thread.DeallocateFrame(ref nativeFrame);
             }
             else
@@ -739,6 +774,10 @@ namespace FastLua.VM
                 //TODO Need to set up some flags so that when recovered we start from ret sig adjustment.
                 throw new RecoverableException();
             }
+
+            //Follow Lua return protocol: use parentSig for adjustment.
+            parentSig.Type = StackSignature.EmptyV;
+
             goto returnFromNativeFunction;
 
         returnFromLuaFunction:
@@ -764,13 +803,17 @@ namespace FastLua.VM
             {
                 //Lua frames cannot have pc == 0 when calling another function.
                 //This is a native (C#) frame. Exit interpreter.
-                parentSig.Type = sig.Type;
+                parentSig.Type = proto.SigTypes[sig.TypeId];
                 parentSig.VLength = sig.VLength;
                 return;
             }
 
             //Exit from one Lua frame to another Lua frame.
             //Restore parent frame state and continue.
+
+            //Convert sig type (save it temporarily to parentSig).
+            //TODO we should probably find a better place, as parentSig is a ref.
+            parentSig.Type = proto.SigTypes[sig.TypeId];
 
             //Restore.
             closure = thread.ClosureStack.Pop();
@@ -790,7 +833,7 @@ namespace FastLua.VM
                 int r3 = (sbyte)(byte)(ii & 0xFF);
 
                 //Adjust return values (without moving additional to vararg list).
-                if (sig.Type == proto.SigTypes[r2])
+                if (parentSig.Type.GlobalId == proto.SigTypes[r2].GlobalId)
                 {
                     //Fast path.
                     if (sig.VLength >= r3)
@@ -802,18 +845,15 @@ namespace FastLua.VM
                         values.Span.Slice(sig.Offset + sig.TotalLength, r3 - sig.VLength).Fill(TypedValue.Nil);
                         sig.VLength = 0;
                     }
-                    sig.Type = proto.SigTypes[r1];
+                    sig.TypeId = r1;
+                    sig.FLength = proto.SigTypes[r1].FLength; //TODO can we eliminate this?
                 }
                 else
                 {
-                    if (!sig.AdjustRight(in values, proto.SigTypes[r1]))
+                    if (!sig.AdjustRight(in values, -1, parentSig.Type, proto.SigTypes, r1))
                     {
                         throw new NotImplementedException();
                     }
-                }
-                if (!proto.SigTypes[r1].Vararg.HasValue)
-                {
-                    sig.DiscardVararg(in values);
                 }
 
                 //TODO maybe we should give CALL/CALLC/FORG different OpCodes for INV

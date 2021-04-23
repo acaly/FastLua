@@ -61,7 +61,7 @@ namespace FastLua.VM
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Span<StackFrame> AllocateNextFrame(ref StackFrame lastFrame, in StackSignatureState sig,
+        internal Span<StackFrame> AllocateNextFrame(ref StackFrame lastFrame, int offset, int totalLength,
             int size, bool onSameSeg)
         {
             Debug.Assert(_serializedFrames.Count > 0);
@@ -69,14 +69,14 @@ namespace FastLua.VM
             Debug.Assert(size < Options.MaxSingleFunctionStackSize);
 
             var newHead = lastFrame.Segment;
-            var newStart = lastFrame.Offset + sig.Offset;
-            var newSize = sig.TotalLength + size;
+            var newStart = lastFrame.Offset + offset;
+            var newSize = totalLength + size;
             var s = _segments[newHead];
             //newSize can be larget than MaxSingleFunctionStackSize. Is it desired?
 
             if (s.Length < newStart + newSize)
             {
-                return AllocateNextFrameSlow(ref lastFrame, in sig, size, onSameSeg);
+                return AllocateNextFrameSlow(ref lastFrame, offset, totalLength, size, onSameSeg);
             }
 
             ref var ret = ref _serializedFrames.Add();
@@ -98,14 +98,14 @@ namespace FastLua.VM
             return new(this, _serializedFrames.Count - 1);
         }
 
-        private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, in StackSignatureState sig,
+        private Span<StackFrame> AllocateNextFrameSlow(ref StackFrame lastFrame, int offset, int totalLength,
             int size, bool onSameSeg)
         {
             ref var ret = ref _serializedFrames.Add();
 
             var newHead = lastFrame.Segment;
-            var newStart = lastFrame.Offset + sig.Offset;
-            var newSize = sig.TotalLength + size;
+            var newStart = lastFrame.Offset + offset;
+            var newSize = totalLength + size;
             var s = _segments[newHead];
 
             if (!onSameSeg)
@@ -119,10 +119,10 @@ namespace FastLua.VM
                 }
 
                 //Copy args from old frame.
-                var argSize = sig.TotalLength;
+                var argSize = totalLength;
                 var lastFrameValues = _segments[lastFrame.Segment].AsSpan();
                 lastFrameValues = lastFrameValues.Slice(lastFrame.Offset, lastFrame.Length);
-                lastFrameValues = lastFrameValues.Slice(sig.Offset, argSize);
+                lastFrameValues = lastFrameValues.Slice(offset, argSize);
                 lastFrameValues.CopyTo(_segments[newHead].AsSpan()[0..newSize]);
 
                 ret.Segment = newHead;
@@ -139,7 +139,7 @@ namespace FastLua.VM
             //enough space. Need to relocate all existing frames that requires OnSameSegment.
             //This should be very rare for any normal code.
 
-            ReallocateFrameInternal(ref lastFrame, sig.Offset + newSize);
+            ReallocateFrameInternal(ref lastFrame, offset + newSize);
 
             //Use RecoverableException to restart all Lua frames. This is necessary
             //to update the Span<TypedValue> on native C# stack.
@@ -198,6 +198,7 @@ namespace FastLua.VM
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void DeallocateFrame(ref Span<StackFrame> frame)
         {
             Debug.Assert(Unsafe.AreSame(ref frame[0], ref _serializedFrames.Last));
