@@ -471,12 +471,11 @@ namespace FastLua.VM
                 case OpCodes.VARG:
                 case OpCodes.VARGC:
                 {
-                    int r1 = (int)((ii >> 16) & 0xFF);
-                    int r2 = (int)((ii >> 8) & 0xFF);
-                    int r3 = (sbyte)(byte)(ii & 0xFF);
+                    int pos = (int)((ii >> 16) & 0xFF);
+                    int r1 = (int)((ii >> 8) & 0xFF);
+                    int rx = (sbyte)(byte)(ii & 0xFF);
 
                     //TODO check whether this will write out of range
-                    var pos = sig.Type is null ? proto.SigRegionOffset : (sig.Offset + sig.TotalLength);
                     for (int i = 0; i < stack[0].VarargInfo.VarargLength; ++i)
                     {
                         values[pos + i] = thread.VarargStack[stack[0].VarargInfo.VarargStart + i];
@@ -488,16 +487,16 @@ namespace FastLua.VM
                     sig.VLength = stack[0].VarargInfo.VarargLength;
 
                     //Then adjust to requested (this is needed in assignment statement).
-                    if (sig.Type == proto.SigTypes[r2])
+                    if (rx >= 0)
                     {
                         //Fast path.
-                        if (sig.VLength >= r3)
+                        if (sig.VLength >= rx)
                         {
-                            sig.VLength -= r3;
+                            sig.VLength -= rx;
                         }
                         else
                         {
-                            values.Span.Slice(sig.Offset + sig.TotalLength, r3 - sig.VLength).Fill(TypedValue.Nil);
+                            values.Span.Slice(sig.Offset + sig.TotalLength, rx - sig.VLength).Fill(TypedValue.Nil);
                             sig.VLength = 0;
                         }
                         sig.Type = proto.SigTypes[r1];

@@ -127,7 +127,39 @@ namespace FastLuaTest
                 TestHelper.AssertEnv, args, results);
         }
 
-        //TODO return vararg
-        //TODO return vararg as another function's args
+        [Test]
+        public void ReturnVararg()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local function values() " +
+                "    return 1, 2, 3 " +
+                "end " +
+                "local function test1(...) " +
+                "    return ... " +
+                "end " +
+                "local function test2(...) " +
+                "    return 10, ... " +
+                "end " +
+                "local r11, r12, r13, r14 = test1(values()) " +
+                "local r21, r22, r23, r24, r25 = test1(20, values()) " +
+                "local r31, r32, r33, r34, r35 = test2(values()) " +
+                "assert(r11 == 1) " +
+                "assert(r12 == 2) " +
+                "assert(r13 == 3) " +
+                "assert(r14 == nil) " +
+                "assert(r21 == 20) " +
+                "assert(r22 == 1) " +
+                "assert(r23 == 2) " +
+                "assert(r24 == 3) " +
+                "assert(r25 == nil) " +
+                "assert(r31 == 10) " +
+                "assert(r32 == 1) " +
+                "assert(r33 == 2) " +
+                "assert(r34 == 3) " +
+                "assert(r35 == nil)",
+                TestHelper.AssertEnv, args, results);
+        }
     }
 }

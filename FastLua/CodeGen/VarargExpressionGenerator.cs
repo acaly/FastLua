@@ -57,8 +57,9 @@ namespace FastLua.CodeGen
             }
             //Adjust right parameters: assume EmptyV.
             //This might not be true for specialized functions. In this case, it will go through slow path.
+            //Note that for VARG/VARGC, we are using a different version of R1-R3. See OpCodes doc for details.
             writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
-                sigIndex, (int)WellKnownStackSignature.EmptyV, sigType.FLength);
+                sigBlock.Offset, sigIndex, sigType.FLength);
         }
 
         public override void WritSig(SignatureWriter writer)

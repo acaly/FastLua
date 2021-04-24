@@ -84,7 +84,7 @@ namespace FastLua.VM
             //Fill nils if necessary.
             if (diff > VLength)
             {
-                values.Span.Slice(Offset + TotalLength, diff).Fill(TypedValue.Nil);
+                values.Span.Slice(Offset + TotalLength, diff - VLength).Fill(TypedValue.Nil);
                 VLength = 0;
             }
             else
