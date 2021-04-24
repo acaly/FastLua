@@ -53,6 +53,34 @@ namespace FastLuaTest
         }
 
         [Test]
+        public void LoopBlock()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local a, b = {}, {} " +
+                "for i = 1, 3 do " +
+                "    local x = 0 " +
+                "    a[i] = function(val) x = val end " +
+                "    b[i] = function() return x end " +
+                "end " +
+                "assert(b[1]() == 0) " +
+                "a[1](1) " +
+                "assert(b[1]() == 1) " +
+                "assert(b[2]() == 0) " +
+                "a[2](2) " +
+                "assert(b[2]() == 2) " +
+                "assert(b[3]() == 0) " +
+                "a[3](3) " +
+                "assert(b[3]() == 3) " +
+                "assert(b[2]() == 2) " +
+                "assert(b[1]() == 1) " +
+                "a[1](4) " +
+                "assert(b[1]() == 4)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
         public void Nested1ImportGlobal()
         {
             var args = Array.Empty<TypedValue>();

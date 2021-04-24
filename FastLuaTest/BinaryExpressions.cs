@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace FastLuaTest
 {
-    public class BinaryExpr
+    public class BinaryExpressions
     {
         [Test]
         public void LogicAnd()

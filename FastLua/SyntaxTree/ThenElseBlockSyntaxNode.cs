@@ -29,7 +29,7 @@ namespace FastLua.SyntaxTree
             visitor.Visit(this);
             visitor.Start(this);
             base.Traverse(visitor);
-            Condition.Traverse(visitor);
+            Condition?.Traverse(visitor);
             visitor.Finish(this);
         }
     }
