@@ -161,5 +161,22 @@ namespace FastLuaTest
                 "assert(r35 == nil)",
                 TestHelper.AssertEnv, args, results);
         }
+
+        [Test]
+        public void MultiToSingle()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local function test1(...) return ... end " +
+                "local function test2(...) return (...) end " +
+                "local r11, r12 = (test1(1, 2, 3)) " +
+                "local r21, r22 = test2(1, 2, 3) " +
+                "assert(r11 == 1) " +
+                "assert(r12 == nil) " +
+                "assert(r21 == 1) " +
+                "assert(r22 == nil)",
+                TestHelper.AssertEnv, args, results);
+        }
     }
 }
