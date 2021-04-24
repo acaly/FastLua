@@ -94,7 +94,7 @@ namespace FastLuaBenchmark
         [Benchmark(Baseline = true)]
         public double FastLua()
         {
-            LuaInterpreter.Execute(_fastLuaThread, _fastLuaClosure, _fastLuaStackFrame, 0, 0);
+            LuaInterpreter.Execute(_fastLuaStackFrame, _fastLuaClosure, 0, 0);
             _fastLuaStackFrame.Read(0, out var ret);
             return ret.NumberVal;
         }

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace FastLuaTest
 {
-    public class NativeFunctions
+    public class LuaToNative
     {
         [Test]
         public void TestAssert()

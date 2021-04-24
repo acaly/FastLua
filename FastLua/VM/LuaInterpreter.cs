@@ -12,20 +12,20 @@ namespace FastLua.VM
 {
     public partial class LuaInterpreter
     {
-        public static int Execute(Thread thread, LClosure closure, AsyncStackInfo stackInfo, int argOffset, int argSize)
+        public static int Execute(AsyncStackInfo stackInfo, LClosure closure, int argOffset, int argSize)
         {
             //C#-Lua boundary: before.
 
-            ref var stack = ref thread.GetFrame(stackInfo.StackFrame);
+            ref var stack = ref stackInfo.Thread.GetFrame(stackInfo.StackFrame);
             StackFrameValues values = default;
-            values.Span = thread.GetFrameValues(in stack);
+            values.Span = stackInfo.Thread.GetFrameValues(in stack);
 
             //Set up argument type info for Lua function.
             var sig = new StackSignatureState(argOffset, argSize);
             try
             {
                 //For simplicity, C#-Lua call always passes arguments in same segment.
-                InterpreterLoop(thread, closure, ref stack, ref sig, forceOnSameSeg: true);
+                InterpreterLoop(stackInfo.Thread, closure, ref stack, ref sig, forceOnSameSeg: true);
             }
             catch (RecoverableException)
             {
@@ -59,6 +59,7 @@ namespace FastLua.VM
             return sig.VLength;
         }
 
+        [SkipLocalsInit]
         private static void InterpreterLoop(Thread thread, LClosure closure, ref StackFrame lastFrame,
             ref StackSignatureState parentSig, bool forceOnSameSeg)
         {

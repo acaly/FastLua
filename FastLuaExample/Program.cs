@@ -55,7 +55,7 @@ namespace FastLuaExample
             var arg = TypedValue.MakeString("C#");
 
             stack.Write(0, in arg);
-            LuaInterpreter.Execute(thread, closure, stack, 0, 1);
+            LuaInterpreter.Execute(stack, closure, 0, 1);
             stack.Read(0, out var ret);
         }
     }

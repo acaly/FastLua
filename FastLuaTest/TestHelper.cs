@@ -70,7 +70,7 @@ namespace FastLuaTest
             CompareProto(closure.Proto, newClosure.Proto);
         }
 
-        private static LClosure Compile(string code, Table env)
+        public static LClosure Compile(string code, Table env)
         {
             var codeReader = new StringReader(code);
             var rawTokens = new LuaRawTokenizer();
@@ -107,7 +107,7 @@ namespace FastLuaTest
             }
             stack.Write(0, args);
 
-            var retCount = LuaInterpreter.Execute(thread, closure, stack, 0, 0);
+            var retCount = LuaInterpreter.Execute(stack, closure, 0, 0);
             stack.Read(0, results);
             for (int i = retCount; i < results.Length; ++i)
             {
