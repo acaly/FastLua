@@ -17,7 +17,8 @@ namespace FastLua.VM
             //C#-Lua boundary: before.
 
             ref var stack = ref thread.GetFrame(stackInfo.StackFrame);
-            var values = thread.GetFrameValues(ref stack);
+            StackFrameValues values = default;
+            values.Span = thread.GetFrameValues(in stack);
 
             //Set up argument type info for Lua function.
             var sig = new StackSignatureState(argOffset, argSize);
@@ -64,7 +65,8 @@ namespace FastLua.VM
             //equals this frame's Segment.
 
             var proto = closure.Proto;
-            var stack = thread.AllocateNextFrame(ref lastFrame, in parentSig, proto.StackSize, forceOnSameSeg);
+            var stack = thread.AllocateNextFrame(ref lastFrame, parentSig.Offset, parentSig.TotalLength,
+                proto.StackSize, forceOnSameSeg);
 
             var sig = parentSig;
             sig.Offset = 0; //Args are at the beginning in the new frame.
@@ -72,10 +74,12 @@ namespace FastLua.VM
             StackInfo nextNativeStackInfo = default;
             nextNativeStackInfo.AsyncStackInfo = thread.ConvertToNativeFrame(ref stack[0]);
 
+            StackFrameValues values = default;
+
         enterNewLuaFrame:
             nextNativeStackInfo.AsyncStackInfo.StackFrame += 1;
 
-            var values = thread.GetFrameValues(ref stack[0]);
+            values.Span = thread.GetFrameValues(in stack[0]);
 
             //Adjust argument list according to the requirement of the callee.
             //Also remove vararg into separate stack.
@@ -451,7 +455,7 @@ namespace FastLua.VM
                         closure = lc;
                         proto = lc.Proto;
                         //TODO is argSig.HasV necessary here?
-                        stack = thread.AllocateNextFrame(ref stack[0], in sig, proto.StackSize,
+                        stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength, proto.StackSize,
                             argSig.Vararg.HasValue || proto.SigTypes[r1].Vararg.HasValue);
 
                         goto enterNewLuaFrame;
@@ -607,7 +611,8 @@ namespace FastLua.VM
                         //Setup proto, closure, and stack.
                         closure = lc;
                         proto = lc.Proto;
-                        stack = thread.AllocateNextFrame(ref stack[0], in sig, proto.StackSize, onSameSeg: false);
+                        stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
+                            proto.StackSize, onSameSeg: false);
 
                         goto enterNewLuaFrame;
                     }
@@ -649,7 +654,7 @@ namespace FastLua.VM
                     {
                         //The last one is on a previous stack. Find the location using last frame's data.
                         ref var lastFrameRef = ref thread.GetLastFrame(ref stack[0]);
-                        retSpan = thread.GetFrameValues(ref lastFrameRef).Span[lastFrameRef.SigOffset..];
+                        retSpan = thread.GetFrameValues(in lastFrameRef)[lastFrameRef.SigOffset..];
                         l = Math.Min(l, retSpan.Length);
                     }
                     for (int i = 0; i < l; ++i)
@@ -677,7 +682,7 @@ namespace FastLua.VM
                 //Allocate C# frame.
                 //This frame is not too different from a Lua frame.
                 //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
-                var nativeFrame = thread.AllocateNextFrame(ref stack[0], in sig,
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
@@ -690,7 +695,7 @@ namespace FastLua.VM
 
                 //Update sig VLength (it will be adjusted later).
                 //Note that Type and Offset don't need to change.
-                nextNativeStackInfo.Values = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
+                nextNativeStackInfo.Values.Span = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
                 sig.VLength = nativeFunc(nextNativeStackInfo, sig.TotalLength);
                 sig.Type = StackSignature.EmptyV;
                 thread.DeallocateFrame(ref nativeFrame);
@@ -702,7 +707,7 @@ namespace FastLua.VM
                 //Allocate C# frame.
                 //This frame is not too different from a Lua frame.
                 //Leave PC = 0 (used by RET0/RETN to check whether last frame is Lua frame).
-                var nativeFrame = thread.AllocateNextFrame(ref stack[0], in sig,
+                var nativeFrame = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
@@ -731,7 +736,7 @@ namespace FastLua.VM
 
             //Check Lua stack relocation.
             //TODO this is slow, need to optimize
-            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0])[0]))
+            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(in stack[0])[0]))
             {
                 pc += 1;
                 stack[0].PC = pc;
@@ -775,7 +780,7 @@ namespace FastLua.VM
             //Restore.
             closure = thread.ClosureStack.Pop();
             proto = closure.Proto;
-            values = thread.GetFrameValues(ref stack[0]);
+            values.Span = thread.GetFrameValues(in stack[0]);
             sig.Offset = stack[0].SigOffset;
             inst = proto.Instructions;
 
@@ -816,8 +821,6 @@ namespace FastLua.VM
                     sig.DiscardVararg(in values);
                 }
 
-                //TODO maybe we should give CALL/CALLC/FORG different OpCodes for INV
-                //so we don't need to read 2 instructions.
                 switch ((OpCodes)(ii >> 24))
                 {
                 case OpCodes.CALL_CTN:
