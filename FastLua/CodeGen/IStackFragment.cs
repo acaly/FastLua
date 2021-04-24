@@ -85,7 +85,7 @@ namespace FastLua.CodeGen
             var ret = new AllocatedLocal
             {
                 Owner = this,
-                InFragmentOffset = Length,
+                InFragmentOffset = _unspecializedLength,
                 Type = 0,
             };
             _unspecializedLength += 1;
@@ -97,7 +97,7 @@ namespace FastLua.CodeGen
             var ret = new AllocatedLocal
             {
                 Owner = this,
-                InFragmentOffset = Length,
+                InFragmentOffset = _objLength,
                 Type = 1,
             };
             _objLength += 1;
@@ -109,7 +109,7 @@ namespace FastLua.CodeGen
             var ret = new AllocatedLocal
             {
                 Owner = this,
-                InFragmentOffset = Length,
+                InFragmentOffset = _numLength,
                 Type = 2,
             };
             _numLength += 1;

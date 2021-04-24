@@ -11,6 +11,7 @@ namespace FastLua.CodeGen
 {
     internal class BlockGenerator : StatementGenerator
     {
+        private readonly FunctionGenerator _function;
         public readonly GroupStackFragment Stack;
         public readonly BlockStackFragment UpvalStack;
         public readonly BlockStackFragment LocalStack;
@@ -20,10 +21,11 @@ namespace FastLua.CodeGen
 
         public BlockGenerator(GeneratorFactory factory, GroupStackFragment parentStack, BlockSyntaxNode block)
         {
+            _function = factory.Function;
             Stack = new();
             UpvalStack = new();
             LocalStack = new();
-            var tempStack = new BlockStackFragment();
+            var tempStack = new OverlappedStackFragment();
             TempAllocator = new(tempStack);
             Stack.Add(UpvalStack);
             Stack.Add(LocalStack);
@@ -54,7 +56,7 @@ namespace FastLua.CodeGen
             foreach (var statement in block.Statements)
             {
                 _generators.Add(factory.CreateStatement(this, statement));
-                factory.Function.CheckStatementState();
+                CheckBlockStatementState();
             }
         }
 
@@ -82,6 +84,12 @@ namespace FastLua.CodeGen
             {
                 g.Emit(writer);
             }
+        }
+
+        public void CheckBlockStatementState()
+        {
+            _function.CheckFuncStatementState();
+            TempAllocator.Reset();
         }
     }
 }

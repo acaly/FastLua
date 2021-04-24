@@ -10,11 +10,15 @@ namespace FastLua.CodeGen
 {
     internal class TempVarAllocator
     {
-        private readonly BlockStackFragment _stack;
+        private readonly OverlappedStackFragment _mergedStack;
+        private BlockStackFragment _stack;
 
-        public TempVarAllocator(BlockStackFragment stack)
+        public TempVarAllocator(OverlappedStackFragment stack)
         {
-            _stack = stack;
+            _mergedStack = stack;
+
+            _stack = new();
+            _mergedStack.Add(_stack);
         }
 
         public AllocatedLocal Allocate(ExpressionSyntaxNode expr)
@@ -28,6 +32,12 @@ namespace FastLua.CodeGen
         {
             //Allocate a new slot for each temp var.
             return _stack.AddSpecializedType(type);
+        }
+
+        public void Reset()
+        {
+            _stack = new();
+            _mergedStack.Add(_stack);
         }
     }
 }

@@ -60,7 +60,7 @@ namespace FastLua.CodeGen
 
             //Jumping according to the expression's value should behave like a normal statement.
             //(Close any invocation expressions. Clear temp variable list.)
-            factory.Function.CheckStatementState();
+            block.CheckBlockStatementState();
         }
 
         private static bool IsComparisonExpr(BinaryExpressionSyntaxNode expr, out OpCodes op, out bool exchanged)

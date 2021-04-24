@@ -130,7 +130,7 @@ namespace FastLua.CodeGen
                 return new WhileStatementGenerator(this, parentBlock, @while);
             case BlockSyntaxNode block:
                 //Block as the last (should only match simple block and function definition).
-                return new BlockGenerator(this, parentBlock?.Stack ?? Function.LocalFragment, block);
+                return new BlockGenerator(this, parentBlock.Stack, block);
             default:
                 break;
             }

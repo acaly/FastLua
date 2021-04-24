@@ -96,8 +96,8 @@ namespace FastLua.CodeGen
 
             //Create main block (this will recursively create all blocks and thus all locals).
             var factory = new GeneratorFactory(this);
-            var block = factory.CreateStatement(null, funcNode);
-            CheckStatementState();
+            var block = new BlockGenerator(factory, LocalFragment, funcNode);
+            block.CheckBlockStatementState();
 
             //Build locals.
             int stackLength = 0;
@@ -141,12 +141,10 @@ namespace FastLua.CodeGen
         }
 
         //Called after each statement (by BlockGenerator) to check the state of the generator.
-        public void CheckStatementState()
+        public void CheckFuncStatementState()
         {
             //Confirm that anyone who changes sig block (should only be InvocationExpr) changes it back.
             Debug.Assert(SigBlockFragment == _rootSigBlockFragment);
-
-            //TODO reset temp allocator (should this be done in a method called "Check"?)
         }
     }
 }
