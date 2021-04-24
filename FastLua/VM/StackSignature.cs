@@ -31,7 +31,8 @@ namespace FastLua.VM
         public VMSpecializationType? Vararg { get; private init; }
         public bool IsUnspecialized { get; private init; }
 
-        public int FLength => ElementInfo.Length;
+        public int ElementCount => ElementInfo.Length;
+        public int FixedSize => SlotInfo.Length;
 
         public static readonly StackSignature Null = new()
         {
@@ -68,7 +69,9 @@ namespace FastLua.VM
         //one without needing any conversion, so that directly adjusting
         //length is enough.
         //Note that for types with vararg, the vararg part must also be compatible
-        //(without any moving/conversion).
+        //(can be different but without any moving/conversion).
+        //For example, NNO is NOT compatible with NN, since the third element O is
+        //not at the aligned position, where a normal vararg should starts.
         public bool IsCompatibleWith(StackSignature sig)
         {
             if (IsUnspecialized && sig.IsUnspecialized)
@@ -92,13 +95,20 @@ namespace FastLua.VM
             throw new NotImplementedException();
         }
 
+        //Adjust to EmptyV.
         //TODO this method needs to return an adjusted length (or modify sig state struct)
-        public void AdjustStackToUnspecialized(in StackFrameValues values)
+        public void AdjustStackToUnspecialized(in StackFrameValues values, ref int vlen)
         {
             if (!IsUnspecialized)
             {
+                vlen += ElementCount;
                 return;
             }
+            throw new NotImplementedException();
+        }
+
+        public bool CheckAndAdjustStackToType(in StackFrameValues values, StackSignature newType, ref int vlen)
+        {
             throw new NotImplementedException();
         }
 

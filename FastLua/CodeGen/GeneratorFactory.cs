@@ -84,7 +84,7 @@ namespace FastLua.CodeGen
             case UnaryExpressionSyntaxNode unary:
                 return new UnaryExpressionGenerator(this, parentBlock, unary);
             case VarargExpressionSyntaxNode vararg:
-                return new VarargExpressionGenerator(Function.FunctionDefinition, vararg);
+                return new VarargExpressionGenerator(this, Function.FunctionDefinition, vararg);
             default:
                 break;
             }

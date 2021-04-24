@@ -31,6 +31,8 @@ namespace FastLua.CodeGen
         public FunctionDefinitionSyntaxNode FunctionDefinition { get; private set; }
         public Func<ulong, Proto> ChildFunctionCompiler { get; private set; }
 
+        public StackSignature VarargSignature { get; private set; }
+
         public FunctionGenerator(SignatureManager signatureManager)
         {
             SignatureManager = signatureManager;
@@ -75,6 +77,7 @@ namespace FastLua.CodeGen
                 paramTypeList.AppendVararg(varargType);
                 varargTypeList.AppendVararg(varargType);
             }
+            VarargSignature = varargTypeList.GetSignature(SignatureManager).s;
 
             //Add upvalues
             foreach (var upList in funcNode.ImportedUpValueLists)
@@ -129,7 +132,7 @@ namespace FastLua.CodeGen
             {
                 ChildFunctions = ChildFunctions.ToImmutableArray(),
                 ParameterSig = paramTypeList.GetSignature(SignatureManager).s,
-                VarargSig = varargTypeList.GetSignature(SignatureManager).s,
+                VarargSig = VarargSignature,
                 SigTypes = SignatureManager.ToArray(),
                 Constants = Constants.ToImmutableArray(),
                 Instructions = instructions.ToImmutableArray(),

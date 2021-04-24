@@ -347,7 +347,7 @@ namespace FastLua.VM
 
         internal void SetSequence(Span<TypedValue> values, StackSignature sig)
         {
-            for (int i = 0; i < sig.FLength; ++i)
+            for (int i = 0; i < sig.ElementCount; ++i)
             {
                 var (type, slot) = sig.ElementInfo[i];
                 AppendSequence(TypedValue.MakeTyped(values[slot], type));

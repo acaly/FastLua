@@ -13,11 +13,13 @@ namespace FastLua.CodeGen
     {
         private readonly bool _isVararg;
         private readonly VMSpecializationType _type;
+        private readonly StackSignature _funcVarargSig;
 
-        public VarargExpressionGenerator(FunctionDefinitionSyntaxNode func, VarargExpressionSyntaxNode expr) : base(0)
+        public VarargExpressionGenerator(GeneratorFactory factory, FunctionDefinitionSyntaxNode func, VarargExpressionSyntaxNode expr) : base(0)
         {
             _isVararg = expr.ReceiverMultiRetState == ExpressionReceiverMultiRetState.Variable;
             _type = func.VarargType.GetVMSpecializationType();
+            _funcVarargSig = factory.Function.VarargSignature;
         }
 
         public override bool TryGetSingleType(out VMSpecializationType type)
@@ -51,15 +53,22 @@ namespace FastLua.CodeGen
             int sigIndex, bool keepSig)
         {
             Debug.Assert(_isVararg);
-            if (sigIndex > 255 || sigBlock.Offset > 255 | sigType.FLength > 127)
+            if (sigIndex > 255 || sigBlock.Offset > 255 | sigType.FixedSize > 127)
             {
                 throw new NotImplementedException();
             }
-            //Adjust right parameters: assume EmptyV.
-            //This might not be true for specialized functions. In this case, it will go through slow path.
             //Note that for VARG/VARGC, we are using a different version of R1-R3. See OpCodes doc for details.
-            writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
-                sigBlock.Offset, sigIndex, sigType.FLength);
+            Debug.Assert(_funcVarargSig.FixedSize == 0);
+            if (_funcVarargSig.IsCompatibleWith(sigType))
+            {
+                writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
+                    sigBlock.Offset, sigIndex, sigType.FixedSize);
+            }
+            else
+            {
+                writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
+                    sigBlock.Offset, sigIndex, -1);
+            }
         }
 
         public override void WritSig(SignatureWriter writer)

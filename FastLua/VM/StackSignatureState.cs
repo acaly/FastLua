@@ -33,10 +33,10 @@ namespace FastLua.VM
             VLength = length;
         }
 
-        public int TotalLength
+        public int TotalSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => VLength + Type?.FLength ?? 0;
+            get => VLength + Type?.FixedSize ?? 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -47,7 +47,7 @@ namespace FastLua.VM
 
         public void AdjustLeft(in StackFrameValues values, StackSignature newSigType)
         {
-            Debug.Assert(newSigType.FLength >= Type.FLength);
+            //Debug.Assert(newSigType.FixedSize >= Type.FixedSize);
 
             //TODO in some cases we need to update values
             //Type = newSigType;
@@ -68,23 +68,34 @@ namespace FastLua.VM
             if (!Type.IsCompatibleWith(newSigType))
             {
                 //Not compatible.
+
                 if (!newSigType.IsUnspecialized)
                 {
-                    //Target is not unspecialized. We can do nothing here.
-                    return false;
+                    //Target is not unspecialized. Adjust in slow path.
+                    return Type.CheckAndAdjustStackToType(in values, newSigType, ref VLength);
                 }
 
-                //Target is unspecialized. We can make them compatible.
+                //Two unspecialized types are always compatible.
                 Debug.Assert(!Type.IsUnspecialized);
-                Type.AdjustStackToUnspecialized(in values);
+
+                //Target is unspecialized. We can make them compatible by AdjustStackToUnspecialized.
+                //This is hopefully faster than CheckAndAdjustStackToType and is ensured to succeed.
+                Type.AdjustStackToUnspecialized(in values, ref VLength);
+                Type = newSigType;
+                VLength -= newSigType.ElementCount;
+                return true;
             }
 
-            var diff = newSigType.FLength - Type.FLength;
+            //Two types are compatible. We simply need to update VLength (or fill with nils).
+
+            //It shouldn't matter whether we use element count or fixed size. They are the same.
+            var diff = newSigType.ElementCount - Type.ElementCount;
+            Debug.Assert(diff == newSigType.FixedSize - Type.FixedSize);
 
             //Fill nils if necessary.
             if (diff > VLength)
             {
-                values.Span.Slice(Offset + TotalLength, diff - VLength).Fill(TypedValue.Nil);
+                values.Span.Slice(Offset + TotalSize, diff - VLength).Fill(TypedValue.Nil);
                 VLength = 0;
             }
             else
@@ -109,7 +120,7 @@ namespace FastLua.VM
             varargInfo.VarargStart = storage.Count;
             varargInfo.VarargLength = VLength;
 
-            var start = Offset + Type.FLength;
+            var start = Offset + Type.FixedSize;
             for (int i = 0; i < varargInfo.VarargLength; ++i)
             {
                 storage.Add(values[start + i]);
@@ -121,7 +132,7 @@ namespace FastLua.VM
         {
             if (VLength > 0)
             {
-                var start = Offset + Type.FLength;
+                var start = Offset + Type.FixedSize;
                 for (int i = 0; i < VLength; ++i)
                 {
                     values[start + i].Object = null;

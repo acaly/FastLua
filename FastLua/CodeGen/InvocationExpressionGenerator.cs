@@ -284,13 +284,20 @@ namespace FastLua.CodeGen
             var l2 = _mergedSigFragment.Offset;
             var r1 = sig;
             var r2 = (int)WellKnownStackSignature.EmptyV;
-            var r3 = sigType.FLength;
-            if (functionSlot.Offset > 255 || l1 > 255 || l2 > 255 || r1 > 255 || sigType.FLength > 127)
+            var r3 = sigType.FixedSize;
+            if (functionSlot.Offset > 255 || l1 > 255 || l2 > 255 || r1 > 255 || r3 > 127)
             {
                 throw new NotImplementedException();
             }
             writer.WriteUUU(opcode1, functionSlot.Offset, l1, l2);
-            writer.WriteUUS(opcode2, r1, r2, r3);
+            if (sigType.IsCompatibleWith(StackSignature.EmptyV))
+            {
+                writer.WriteUUS(opcode2, r1, r2, r3);
+            }
+            else
+            {
+                writer.WriteUUS(opcode2, r1, 0, 0);
+            }
 
             //Move if requested.
             if (dest != _mergedSigFragment.Offset)
