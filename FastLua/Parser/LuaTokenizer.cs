@@ -53,6 +53,8 @@ namespace FastLua.Parser
     {
         private static readonly StringDictionary<LuaTokenType> _keywords = new()
         {
+            { "and", LuaTokenType.And },
+            { "break", LuaTokenType.Break },
             { "do", LuaTokenType.Do },
             { "else", LuaTokenType.Else },
             { "elseif", LuaTokenType.Elseif },

@@ -163,7 +163,7 @@ namespace FastLua.VM
                 {
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
-                    if (CompareValue(values[a], values[b]) == 0)
+                    if (CompareValueEqual(values[a], values[b]))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }
@@ -174,7 +174,7 @@ namespace FastLua.VM
                     int a = (int)((ii >> 16) & 0xFF);
                     int b = (int)((ii >> 8) & 0xFF);
                     //!(cmp == 0) will return true for NaN comparison.
-                    if (!(CompareValue(values[a], values[b]) == 0))
+                    if (!CompareValueEqual(values[a], values[b]))
                     {
                         pc += (sbyte)(byte)(ii & 0xFF);
                     }

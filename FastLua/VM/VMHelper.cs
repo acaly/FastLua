@@ -8,6 +8,31 @@ namespace FastLua.VM
 {
     internal static class VMHelper
     {
+        public static bool CompareValueEqual(TypedValue a, TypedValue b)
+        {
+            var ta = a.Type;
+            var tb = b.Type;
+            if (ta == tb)
+            {
+                switch (ta)
+                {
+                case VMSpecializationType.Nil:
+                    return true;
+                case VMSpecializationType.Bool:
+                    return a.BoolVal == b.BoolVal;
+                case VMSpecializationType.Int:
+                    return a.IntVal == b.IntVal;
+                case VMSpecializationType.Double:
+                    return a.DoubleVal == b.DoubleVal;
+                case VMSpecializationType.String:
+                    return a.StringVal.Equals(b.StringVal);
+                default:
+                    break;
+                }
+            }
+            throw new NotImplementedException();
+        }
+
         public static int? CompareValue(TypedValue a, TypedValue b)
         {
             var ta = a.Type;
@@ -19,9 +44,7 @@ namespace FastLua.VM
                 case VMSpecializationType.Nil:
                     return 0;
                 case VMSpecializationType.Bool:
-                    //TODO bools can only be compared with == and ~=
-                    //Need to modify this API to disallow others
-                    throw new NotImplementedException();
+                    break;
                 case VMSpecializationType.Int:
                     return Math.Sign(a.IntVal - b.IntVal);
                 case VMSpecializationType.Double:
