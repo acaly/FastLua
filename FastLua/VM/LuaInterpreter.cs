@@ -17,8 +17,7 @@ namespace FastLua.VM
             //C#-Lua boundary: before.
 
             ref var stack = ref thread.GetFrame(stackInfo.StackFrame);
-            StackFrameValues values = default;
-            values.Span = thread.GetFrameValues(in stack);
+            var values = thread.GetFrameValues(ref stack);
 
             //Set up argument type info for Lua function.
             var sig = new InterFrameSignatureState
@@ -81,13 +80,10 @@ namespace FastLua.VM
             StackInfo nextNativeStackInfo = default;
             nextNativeStackInfo.AsyncStackInfo = thread.ConvertToNativeFrame(ref stack[0]);
 
-            StackFrameValues values = default;
-            values.Span = thread.GetFrameValues(in stack[0]);
+            StackFrameValues values = thread.GetFrameValues(ref stack[0]);
             StackSignatureState sig = new(in values, parentSig.Type, parentSig.VLength, proto.SigTypes, proto.ParameterSig);
             sig.MoveVararg(in values, thread.VarargStack, ref stack[0].VarargInfo);
             sig.Clear();
-
-            StackSignature crossFrameSignature;
 
         enterNewLuaFrame:
             nextNativeStackInfo.AsyncStackInfo.StackFrame += 1;
@@ -461,7 +457,7 @@ namespace FastLua.VM
                         stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                             proto.StackSize, proto.SigTypes[r1].Vararg.HasValue);
 
-                        values.Span = thread.GetFrameValues(in stack[0]);
+                        values = thread.GetFrameValues(ref stack[0]);
 
                         //Adjust argument list according to the requirement of the callee.
                         //Also remove vararg into separate stack.
@@ -629,7 +625,7 @@ namespace FastLua.VM
                         stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                             proto.StackSize, onSameSeg: false);
 
-                        values.Span = thread.GetFrameValues(in stack[0]);
+                        values = thread.GetFrameValues(ref stack[0]);
 
                         //Adjust argument list according to the requirement of the callee.
                         //Also remove vararg into separate stack.
@@ -681,7 +677,7 @@ namespace FastLua.VM
                     {
                         //The last one is on a previous stack. Find the location using last frame's data.
                         ref var lastFrameRef = ref thread.GetLastFrame(ref stack[0]);
-                        retSpan = thread.GetFrameValues(in lastFrameRef)[lastFrameRef.SigOffset..];
+                        retSpan = thread.GetFrameValues(ref lastFrameRef).Span[lastFrameRef.SigOffset..];
                         l = Math.Min(l, retSpan.Length);
                     }
                     for (int i = 0; i < l; ++i)
@@ -720,7 +716,7 @@ namespace FastLua.VM
 
                 //Update sig VLength (it will be adjusted later).
                 //Note that Type and Offset don't need to change.
-                nextNativeStackInfo.Values.Span = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
+                nextNativeStackInfo.Values = nextNativeStackInfo.AsyncStackInfo.GetFrameValues();
 
                 //Call native function.
                 sig.VLength = nativeFunc(nextNativeStackInfo, sig.TotalLength);
@@ -770,7 +766,7 @@ namespace FastLua.VM
 
             //Check Lua stack relocation.
             //TODO this is slow, need to optimize
-            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(in stack[0])[0]))
+            if (!Unsafe.AreSame(ref values[0], ref thread.GetFrameValues(ref stack[0])[0]))
             {
                 pc += 1;
                 stack[0].PC = pc;
@@ -779,7 +775,9 @@ namespace FastLua.VM
                 throw new RecoverableException();
             }
 
-            crossFrameSignature = StackSignature.EmptyV;
+            //Follow Lua return protocol: use parentSig for adjustment.
+            parentSig.Type = StackSignature.EmptyV;
+
             goto returnFromNativeFunction;
 
         returnFromLuaFunction:
@@ -815,12 +813,12 @@ namespace FastLua.VM
 
             //Convert sig type (save it temporarily to parentSig).
             //TODO we should probably find a better place, as parentSig is a ref.
-            crossFrameSignature = proto.SigTypes[sig.TypeId];
+            parentSig.Type = proto.SigTypes[sig.TypeId];
 
             //Restore.
             closure = thread.ClosureStack.Pop();
             proto = closure.Proto;
-            values.Span = thread.GetFrameValues(in stack[0]);
+            values = thread.GetFrameValues(ref stack[0]);
             sig.Offset = stack[0].SigOffset;
             inst = proto.Instructions;
 
@@ -835,7 +833,7 @@ namespace FastLua.VM
                 int r3 = (sbyte)(byte)(ii & 0xFF);
 
                 //Adjust return values (without moving additional to vararg list).
-                if (crossFrameSignature.GlobalId == proto.SigTypes[r2].GlobalId)
+                if (parentSig.Type.GlobalId == proto.SigTypes[r2].GlobalId)
                 {
                     //Fast path.
                     if (sig.VLength >= r3)
@@ -852,12 +850,14 @@ namespace FastLua.VM
                 }
                 else
                 {
-                    if (!sig.AdjustRight(in values, -1, crossFrameSignature, proto.SigTypes, r1))
+                    if (!sig.AdjustRight(in values, -1, parentSig.Type, proto.SigTypes, r1))
                     {
                         throw new NotImplementedException();
                     }
                 }
 
+                //TODO maybe we should give CALL/CALLC/FORG different OpCodes for INV
+                //so we don't need to read 2 instructions.
                 switch ((OpCodes)(ii >> 24))
                 {
                 case OpCodes.CALL_CTN:
