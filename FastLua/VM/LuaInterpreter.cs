@@ -46,15 +46,17 @@ namespace FastLua.VM
 
             //C#-Lua boundary: after.
 
-            if (sig.Type is not null)
+            Debug.Assert(sig.Type is not null);
+            if (sig.Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
             {
-                sig.AdjustRightToEmptyV(in values);
-                return sig.VLength;
+                if (!sig.Type.IsUnspecialized)
+                {
+                    sig.Type.AdjustStackToUnspecialized(in values);
+                }
+                sig.VLength = sig.TotalLength;
+                sig.Type = StackSignature.EmptyV;
             }
-            else
-            {
-                return 0;
-            }
+            return sig.VLength;
         }
 
         private static void InterpreterLoop(Thread thread, LClosure closure, ref StackFrame lastFrame,
@@ -711,7 +713,10 @@ namespace FastLua.VM
                     Options.DefaultNativeStackSize, onSameSeg: true);
 
                 //Native function always accepts unspecialized stack.
-                sig.AdjustRightToEmptyV(in values);
+                if (!sig.Type.IsUnspecialized)
+                {
+                    sig.Type.AdjustStackToUnspecialized(in values);
+                }
 
                 //Call native function.
                 var retTask = asyncNativeFunc(thread.ConvertToNativeFrame(ref nativeFrame[0]), sig.VLength);

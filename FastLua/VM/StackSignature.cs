@@ -92,6 +92,7 @@ namespace FastLua.VM
             throw new NotImplementedException();
         }
 
+        //TODO this method needs to return an adjusted length (or modify sig state struct)
         public void AdjustStackToUnspecialized(in StackFrameValues values)
         {
             if (!IsUnspecialized)
