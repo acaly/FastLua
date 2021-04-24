@@ -429,6 +429,7 @@ namespace FastLua.VM
                     int l2 = (int)(ii & 0xFF);
                     ii = inst[pc++];
                     int r1 = (int)((ii >> 16) & 0xFF);
+                    var retHasVararg = proto.SigTypes[r1].Vararg.HasValue;
 
                     stack[0].PC = pc;
 
@@ -454,11 +455,12 @@ namespace FastLua.VM
                         thread.ClosureStack.Push(closure);
 
                         //Setup proto, closure, and stack.
+
                         closure = lc;
                         proto = lc.Proto;
                         //TODO is argSig.HasV necessary here?
                         stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength, proto.StackSize,
-                            argSig.Vararg.HasValue || proto.SigTypes[r1].Vararg.HasValue);
+                            retHasVararg);
 
                         goto enterNewLuaFrame;
                     }

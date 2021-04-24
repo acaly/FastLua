@@ -16,6 +16,12 @@ namespace FastLua.VM
             {
                 switch (ta)
                 {
+                case VMSpecializationType.Nil:
+                    return 0;
+                case VMSpecializationType.Bool:
+                    //TODO bools can only be compared with == and ~=
+                    //Need to modify this API to disallow others
+                    throw new NotImplementedException();
                 case VMSpecializationType.Int:
                     return Math.Sign(a.IntVal - b.IntVal);
                 case VMSpecializationType.Double:

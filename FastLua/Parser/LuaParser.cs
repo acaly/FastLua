@@ -272,6 +272,10 @@ namespace FastLua.Parser
             {
                 assignment.ExpressionList = ExprList(ref t);
             }
+            else
+            {
+                assignment.ExpressionList = new();
+            }
             TryReduceLastExpr(assignment.ExpressionList, assignment.Variables.Count);
             _output.CurrentBlock.Add(assignment);
         }

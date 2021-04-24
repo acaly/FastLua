@@ -51,5 +51,67 @@ namespace FastLuaTest
             Assert.AreEqual(LuaValueType.Number, results[0].ValueType);
             Assert.AreEqual(2.0, results[0].NumberVal);
         }
+
+        [Test]
+        public void Nested1ImportGlobal()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local function f1() " +
+                "  assert(true) " +
+                "  return assert " +
+                "end " +
+                "f1()(true) ",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void Nested2ImportGlobal()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local function f1() " +
+                "  local function f2() assert(true) end " +
+                "  f2() " +
+                "  return f2 " +
+                "end " +
+                "f1()() ",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void Nested1ImportLocal()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local local_assert" +
+                "local function f1() " +
+                "  local_assert(true) " +
+                "  return local_assert " +
+                "end " +
+                "local_assert = assert " +
+                "f1()(true) ",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void Nested2ImportLocal()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local local_assert" +
+                "local function f1() " +
+                "  local function f2() local_assert(true) end " +
+                "  f2() " +
+                "  return f2 " +
+                "end " +
+                "local_assert = assert " +
+                "f1()() ",
+                TestHelper.AssertEnv, args, results);
+        }
     }
 }

@@ -85,6 +85,13 @@ namespace FastLua.CodeGen
                     var upvalGenerator = new UpvalueExpressionGenerator(listLocal, i, upList.Variables[i]);
                     Locals.Add(upList.Variables[i], upvalGenerator);
                 }
+
+                //Unlike block-level upval lists, imported upval list may or may not be exported.
+                //Need to check before adding.
+                if (upList.UpValueList is not null)
+                {
+                    UpvalueListSlots.Add(upList.UpValueList, listLocal);
+                }
             }
 
             //Create main block (this will recursively create all blocks and thus all locals).
