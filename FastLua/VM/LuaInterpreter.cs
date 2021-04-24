@@ -461,6 +461,7 @@ namespace FastLua.VM
                         //TODO is argSig.HasV necessary here?
                         stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength, proto.StackSize,
                             retHasVararg);
+                        sig.Offset = 0;
 
                         goto enterNewLuaFrame;
                     }
@@ -617,6 +618,7 @@ namespace FastLua.VM
                         proto = lc.Proto;
                         stack = thread.AllocateNextFrame(ref stack[0], sig.Offset, sig.TotalLength,
                             proto.StackSize, onSameSeg: false);
+                        sig.Offset = 0;
 
                         goto enterNewLuaFrame;
                     }

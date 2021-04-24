@@ -96,8 +96,38 @@ namespace FastLuaTest
                 "local function test1(x, y) assert(x == 1) assert(y == 2) return 1, 2 end " +
                 "local function test2(x, y) assert(x == 3) assert(y == 4) return 3, 4 end " +
                 "local function test3(x, y) assert(x == 1) assert(y == 3) end " +
+                "test1(1, 2) " +
+                "test2(3, 4) " +
                 "test3(test1(1, 2), test2(3, 4))",
                 TestHelper.AssertEnv, args, results);
         }
+
+        [Test]
+        public void Vararg()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local function test1(...) " +
+                "    local a, b, c, d = ... " +
+                "    assert(a == 1) " +
+                "    assert(b == 2) " +
+                "    assert(c == 3) " +
+                "    assert(d == nil) " +
+                "end " +
+                "local function test2(a, ...) " +
+                "    local b, c, d = ... " +
+                "    assert(a == 1) " +
+                "    assert(b == 2) " +
+                "    assert(c == 3) " +
+                "    assert(d == nil) " +
+                "end " +
+                "test1(1, 2, 3) " +
+                "test2(1, 2, 3)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        //TODO return vararg
+        //TODO return vararg as another function's args
     }
 }

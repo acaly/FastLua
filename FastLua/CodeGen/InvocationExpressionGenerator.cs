@@ -284,8 +284,8 @@ namespace FastLua.CodeGen
             var l2 = _mergedSigFragment.Offset;
             var r1 = sig;
             var r2 = (int)WellKnownStackSignature.EmptyV;
-            var r3 = -sigType.FLength;
-            if (functionSlot.Offset > 255 || l1 > 255 || l2 > 255 || r1 > 255 || sigType.FLength > 128)
+            var r3 = sigType.FLength;
+            if (functionSlot.Offset > 255 || l1 > 255 || l2 > 255 || r1 > 255 || sigType.FLength > 127)
             {
                 throw new NotImplementedException();
             }

@@ -51,14 +51,14 @@ namespace FastLua.CodeGen
             int sigIndex, bool keepSig)
         {
             Debug.Assert(_isVararg);
-            if (sigIndex > 255 || sigBlock.Offset > 255 | sigType.FLength > 128)
+            if (sigIndex > 255 || sigBlock.Offset > 255 | sigType.FLength > 127)
             {
                 throw new NotImplementedException();
             }
             //Adjust right parameters: assume EmptyV.
             //This might not be true for specialized functions. In this case, it will go through slow path.
             writer.WriteUUS(keepSig ? OpCodes.VARG : OpCodes.VARGC,
-                sigIndex, (int)WellKnownStackSignature.EmptyV, -sigType.FLength);
+                sigIndex, (int)WellKnownStackSignature.EmptyV, sigType.FLength);
         }
 
         public override void WritSig(SignatureWriter writer)

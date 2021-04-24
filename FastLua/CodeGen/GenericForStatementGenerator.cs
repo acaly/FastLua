@@ -63,7 +63,7 @@ namespace FastLua.CodeGen
             _assignment.Emit(writer);
 
             writer.MarkLabel(loopLabel);
-            if (_hiddenVariableStack.Offset > 255 || _loopVarSig > 255 || _loopVarSigType.FLength > 128)
+            if (_hiddenVariableStack.Offset > 255 || _loopVarSig > 255 || _loopVarSigType.FLength > 127)
             {
                 throw new NotImplementedException();
             }
@@ -71,7 +71,7 @@ namespace FastLua.CodeGen
             writer.WriteUSx(OpCodes.FORG, _hiddenVariableStack.Offset, 0);
             writer.AddLabelFix(exitLabel, InstructionWriter.FixUSxJump);
             //Adjust right parameter: assume EmptyV.
-            writer.WriteUUS(OpCodes.FORG_CTN, _loopVarSig, (int)WellKnownStackSignature.EmptyV, -_loopVarSigType.FLength);
+            writer.WriteUUS(OpCodes.FORG_CTN, _loopVarSig, (int)WellKnownStackSignature.EmptyV, _loopVarSigType.FLength);
 
             //Emit inner block.
             _forBlock.EmitStatements(writer);
