@@ -10,53 +10,33 @@ namespace FastLua.VM
 {
     //TODO rename this source file
 
-    internal struct InterFrameSignatureState
+    internal struct StackSignatureState
     {
         public StackSignature Type;
         public int Offset;
         public int VLength;
 
-        public int TotalLength => Type.FLength + VLength;
-    }
-
-    internal struct StackSignatureState
-    {
-        public int TypeId;
-        public int Offset;
-        public int FLength;
-        public int VLength;
+        //New sig containing arguments, at the beginning of the frame (Offset = 0).
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public StackSignatureState(StackSignature inputSigType, int inputVarg)
+        {
+            Type = inputSigType;
+            Offset = 0;
+            VLength = inputVarg;
+        }
 
         //Unspecialized state. Used by C#-Lua calls.
         public StackSignatureState(int offset, int length)
         {
-            TypeId = (int)WellKnownStackSignature.EmptyV;
+            Type = StackSignature.EmptyV;
             Offset = offset;
-            FLength = 0;
             VLength = length;
-        }
-
-        public StackSignatureState(in StackFrameValues values, StackSignature inputSignature, int vlength,
-            StackSignature[] newSigTypes, int newSigTypeId)
-        {
-            if (inputSignature.GlobalId == newSigTypes[newSigTypeId].GlobalId)
-            {
-                TypeId = newSigTypeId;
-                Offset = 0;
-                FLength = inputSignature.FLength;
-                VLength = vlength;
-                return;
-            }
-            TypeId = -1;
-            Offset = 0;
-            FLength = 0;
-            VLength = vlength;
-            AdjustRight(in values, -1, inputSignature, newSigTypes, newSigTypeId);
         }
 
         public int TotalLength
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => FLength + VLength;
+            get => VLength + Type?.FLength ?? 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -65,9 +45,9 @@ namespace FastLua.VM
             this = default;
         }
 
-        public void AdjustLeft(in StackFrameValues values, StackSignature[] sigTypes, int newSigType)
+        public void AdjustLeft(in StackFrameValues values, StackSignature newSigType)
         {
-            Debug.Assert(sigTypes[newSigType].FLength >= sigTypes[TypeId].FLength);
+            Debug.Assert(newSigType.FLength >= Type.FLength);
 
             //TODO in some cases we need to update values
             //Type = newSigType;
@@ -76,30 +56,44 @@ namespace FastLua.VM
             //Don't clear v length.
         }
 
-        //Vararg part is kept if the new type contains vararg, and discarded otherwise.
-        public bool AdjustRight(in StackFrameValues values, int oldSigIndex,
-            StackSignature oldSigType, StackSignature[] newSigTypes, int newSigType)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AdjustRightToEmptyV(in StackFrameValues values)
         {
-            if (newSigType == oldSigIndex)
+            if (Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
+            {
+                if (!Type.IsUnspecialized)
+                {
+                    Type.AdjustStackToUnspecialized(in values);
+                }
+                VLength = TotalLength;
+                Type = StackSignature.EmptyV;
+            }
+        }
+
+        //Vararg part is always kept. Caller must use DiscardVararg/MoveVararg to clear them
+        //if the new type contains no vararg.
+        public bool AdjustRight(in StackFrameValues values, StackSignature newSigType)
+        {
+            if (newSigType.GlobalId == Type.GlobalId)
             {
                 //Same type.
                 return true;
             }
-            if (!oldSigType.IsCompatibleWith(newSigTypes[newSigType]))
+            if (!Type.IsCompatibleWith(newSigType))
             {
                 //Not compatible.
-                if (!newSigTypes[newSigType].IsUnspecialized)
+                if (!newSigType.IsUnspecialized)
                 {
                     //Target is not unspecialized. We can do nothing here.
                     return false;
                 }
 
                 //Target is unspecialized. We can make them compatible.
-                Debug.Assert(!oldSigType.IsUnspecialized);
-                oldSigType.AdjustStackToUnspecialized(in values);
+                Debug.Assert(!Type.IsUnspecialized);
+                Type.AdjustStackToUnspecialized(in values);
             }
 
-            var diff = newSigTypes[newSigType].FLength - oldSigType.FLength;
+            var diff = newSigType.FLength - Type.FLength;
 
             //Fill nils if necessary.
             if (diff > VLength)
@@ -113,24 +107,23 @@ namespace FastLua.VM
                 VLength -= diff;
             }
 
-            TypeId = newSigType;
-
-            if (!newSigTypes[TypeId].Vararg.HasValue)
-            {
-                DiscardVararg(in values);
-            }
+            Type = newSigType;
             return true;
         }
 
         public void MoveVararg(in StackFrameValues values, List<TypedValue> storage, ref StackFrameVarargInfo varargInfo)
         {
-            //Debug.Assert(TypeId.Vararg.HasValue);
+            if (!Type.Vararg.HasValue)
+            {
+                DiscardVararg(in values);
+                return;
+            }
+            Debug.Assert(Type.Vararg.HasValue);
 
             varargInfo.VarargStart = storage.Count;
             varargInfo.VarargLength = VLength;
-            VLength = 0;
 
-            var start = Offset + FLength;
+            var start = Offset + Type.FLength;
             for (int i = 0; i < varargInfo.VarargLength; ++i)
             {
                 storage.Add(values[start + i]);
@@ -138,11 +131,11 @@ namespace FastLua.VM
             }
         }
 
-        private void DiscardVararg(in StackFrameValues values)
+        public void DiscardVararg(in StackFrameValues values)
         {
             if (VLength > 0)
             {
-                var start = Offset + FLength;
+                var start = Offset + Type.FLength;
                 for (int i = 0; i < VLength; ++i)
                 {
                     values[start + i].Object = null;

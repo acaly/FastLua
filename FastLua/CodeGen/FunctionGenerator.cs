@@ -121,8 +121,8 @@ namespace FastLua.CodeGen
             return new Proto
             {
                 ChildFunctions = ChildFunctions.ToImmutableArray(),
-                ParameterSig = paramTypeList.GetSignature(SignatureManager).i,
-                VarargSig = varargTypeList.GetSignature(SignatureManager).i,
+                ParameterSig = paramTypeList.GetSignature(SignatureManager).s,
+                VarargSig = varargTypeList.GetSignature(SignatureManager).s,
                 SigTypes = SignatureManager.ToArray(),
                 Constants = Constants.ToImmutableArray(),
                 Instructions = instructions.ToImmutableArray(),
