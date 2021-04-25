@@ -419,21 +419,29 @@ namespace FastLua.VM
                     value = _mainList[i].Value;
                     return true;
                 }
-                //TODO this will recursively call the 2 methods for each bucket
-                //May need to optimize.
-                return Next_FromLastNode(index, ref _mainList[i], out key, out value);
+                if (Next_FromLastNode(index, ref _mainList[i], out key, out value, false))
+                {
+                    return true;
+                }
             }
             key = value = TypedValue.Nil;
             return false;
         }
 
-        private bool Next_FromLastNode(int index, ref Node lastNode, out TypedValue key, out TypedValue value)
+        private bool Next_FromLastNode(int index, ref Node lastNode,
+            out TypedValue key, out TypedValue value, bool continueNextBucket)
         {
             var backupIndex = lastNode.NextIndex;
             while (true)
             {
                 if (backupIndex == 0)
                 {
+                    if (!continueNextBucket)
+                    {
+                        //Avoid recursion.
+                        key = value = default;
+                        return false;
+                    }
                     return Next_FromBucket(index + 1, out key, out value);
                 }
                 if (_backupList[backupIndex].HasKey &&
@@ -457,7 +465,7 @@ namespace FastLua.VM
                 //Last key not found.
                 throw new Exception();
             }
-            return Next_FromLastNode(index, ref node, out key, out value);
+            return Next_FromLastNode(index, ref node, out key, out value, true);
         }
 
         internal bool Next(ref TypedValue key, out TypedValue value)
