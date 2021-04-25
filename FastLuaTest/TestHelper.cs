@@ -26,6 +26,7 @@ namespace FastLuaTest
             DefaultEnv = new Table();
             DefaultEnv.SetRaw(TypedValue.MakeString("assert"), TypedValue.MakeNClosure(AssertFunc));
             DefaultEnv.SetRaw(TypedValue.MakeString("add"), TypedValue.MakeNClosure(AddFunc));
+            DefaultEnv.SetRaw(TypedValue.MakeString("next"), TypedValue.MakeNClosure(NextFunc));
         }
 
         private static int AssertFunc(StackInfo stack, int args)
@@ -46,6 +47,23 @@ namespace FastLuaTest
             Assert.AreEqual(LuaValueType.Number, b.ValueType);
             stack.Write(0, TypedValue.MakeDouble(a.NumberVal + b.NumberVal));
             return 1;
+        }
+
+        private static int NextFunc(StackInfo stack, int args)
+        {
+            Assert.GreaterOrEqual(args, 1);
+            Assert.LessOrEqual(args, 2);
+            TypedValue table, key = TypedValue.Nil;
+            stack.Read(0, out table);
+            if (args == 2)
+            {
+                stack.Read(1, out key);
+            }
+            Assert.AreEqual(LuaValueType.Table, table.ValueType);
+            table.TableVal.Next(ref key, out var val);
+            stack.Write(0, key);
+            stack.Write(1, val);
+            return 2;
         }
 
         private static void CompareProto(Proto p1, Proto p2)

@@ -144,5 +144,7 @@ namespace FastLuaTest
             var keys = MakeCollisionKeys(10, 30);
             TestNext(keys, keys.Take(3).Concat(keys.Skip(10).Take(3)).ToArray());
         }
+
+        //TODO sequence
     }
 }

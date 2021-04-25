@@ -358,6 +358,7 @@ namespace FastLua.VM
             {
                 Debug.Assert(key.Type.GetStorageType().obj);
                 key.Object = weakRef.Target;
+                Debug.Assert(key.Object is not null);
             }
         }
 

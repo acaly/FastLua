@@ -862,7 +862,8 @@ namespace FastLua.VM
 
                     if (values[a + 3].Type == VMSpecializationType.Nil)
                     {
-                        pc += (short)(ushort)(ii & 0xFFFF);
+                        //Jump target of FORG was adjusted based on first DWORD. We are on second.
+                        pc += (short)(ushort)(ii & 0xFFFF) - 1;
                     }
                     values[a + 2] = values[a + 3]; //var = var_1
                     break;

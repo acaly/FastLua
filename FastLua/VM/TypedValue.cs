@@ -223,7 +223,11 @@ namespace FastLua.VM
         };
         internal static TypedValue MakeTyped(TypedValue specializedStack, VMSpecializationType type)
         {
-            if (type == VMSpecializationType.Double)
+            if (type == VMSpecializationType.Polymorphic)
+            {
+                return specializedStack;
+            }
+            else if (type == VMSpecializationType.Double)
             {
                 return MakeDouble(specializedStack.Number);
             }

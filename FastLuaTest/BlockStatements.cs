@@ -31,7 +31,7 @@ namespace FastLuaTest
         }
 
         [Test]
-        public void IfStatement()
+        public void If()
         {
             var args = Array.Empty<TypedValue>();
             var results = new TypedValue[1];
@@ -78,7 +78,7 @@ namespace FastLuaTest
         }
 
         [Test]
-        public void WhileStatement()
+        public void While()
         {
             var args = Array.Empty<TypedValue>();
             var results = Array.Empty<TypedValue>();
@@ -97,7 +97,111 @@ namespace FastLuaTest
                 TestHelper.AssertEnv, args, results);
         }
 
-        //TODO repeat
-        //TODO for
+        [Test]
+        public void Repeat()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local a, b = 0, 0 " +
+                "repeat " +
+                "    a = a + 1 " +
+                "    b = b + a " +
+                "    local c = a " +
+                "until c >= 5 " +
+                "assert(a == 5) " +
+                "assert(b == 15) " +
+                "assert(c == nil)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void ForNoStep()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local a, b, c, d = 0, 0, 0, 0 " +
+                "for i = 1, 5 do " +
+                "    a = a + i " +
+                "end " +
+                "for i = 5, 1 do " +
+                "    b = b + i " +
+                "end " +
+                "for i = 1.5, 1.5 do " +
+                "    c = c + i " +
+                "end " +
+                "for i = 1.5, 2 do " +
+                "    d = d + i " +
+                "end " +
+                "assert(a == 15) " +
+                "assert(b == 0) " +
+                "assert(c == 1.5) " +
+                "assert(d == 1.5)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void ForPositive()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local a, b = 0, 0 " +
+                "for i = 1, 5, 0.5 do " +
+                "    a = a + i " +
+                "end " +
+                "for i = 5, 1, 0.5 do " +
+                "    b = b + i " +
+                "end " +
+                "assert(a == 27) " +
+                "assert(b == 0)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void ForNegative()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = Array.Empty<TypedValue>();
+            TestHelper.DoString(
+                "local a, b = 0, 0 " +
+                "for i = 5, 1, -0.5 do " +
+                "    a = a + i " +
+                "end " +
+                "for i = 1, 5, -0.5 do " +
+                "    b = b + i " +
+                "end " +
+                "assert(a == 27) " +
+                "assert(b == 0)",
+                TestHelper.AssertEnv, args, results);
+        }
+
+        [Test]
+        public void ForGeneric()
+        {
+            var args = Array.Empty<TypedValue>();
+            var results = new TypedValue[1];
+            TestHelper.DoString(
+                "local a = { x = 10, y = 20, 30, 40 } " +
+                "local b = {} " +
+                "for k, v in next, a do " +
+                "    b[k] = v " +
+                "end " +
+                "return b",
+                TestHelper.DefaultEnv, args, results);
+            Assert.AreEqual(LuaValueType.Table, results[0].ValueType);
+            var table = results[0].TableVal;
+            Assert.AreEqual(2, table.SequenceSize);
+
+            Assert.True(table.GetRaw(TypedValue.MakeString("x"), out var val));
+            Assert.AreEqual(TypedValue.MakeInt(10), val);
+            Assert.True(table.GetRaw(TypedValue.MakeString("y"), out val));
+            Assert.AreEqual(TypedValue.MakeInt(20), val);
+            Assert.True(table.GetRaw(TypedValue.MakeInt(1), out val));
+            Assert.AreEqual(TypedValue.MakeInt(30), val);
+            Assert.True(table.GetRaw(TypedValue.MakeInt(2), out val));
+            Assert.AreEqual(TypedValue.MakeInt(40), val);
+        }
     }
 }
