@@ -9,9 +9,14 @@ using System.Threading.Tasks;
 
 namespace FastLua.CodeGen
 {
-    public sealed class CodeGenerator
+    public sealed class CodeGenerator : IDisposable
     {
         private readonly SignatureManager _sigManager = new();
+
+        public void Dispose()
+        {
+            _sigManager.Dispose();
+        }
         
         public LClosure Compile(SyntaxRoot ast, Table env)
         {

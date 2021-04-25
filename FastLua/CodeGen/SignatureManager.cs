@@ -7,8 +7,12 @@ using System.Threading.Tasks;
 
 namespace FastLua.CodeGen
 {
-    internal class SignatureManager
+    internal sealed class SignatureManager : IDisposable
     {
+        private readonly List<UnsafeArray<StackSignature.StackSignatureData>> _storage = new();
+        private int _storageLastCount = StorageArraySize;
+        private const int StorageArraySize = 10;
+
         private readonly Dictionary<int, List<(StackSignature s, int i)>> _knownSignatures = new();
         private int _nextId = 0;
 
@@ -17,7 +21,7 @@ namespace FastLua.CodeGen
             //Add well-known types.
             _knownSignatures.Add(0, new()
             {
-                (StackSignature.Null, (int)WellKnownStackSignature.Null),
+                (default, (int)WellKnownStackSignature.Null),
                 (StackSignature.Empty, (int)WellKnownStackSignature.Empty),
                 (StackSignature.EmptyV, (int)WellKnownStackSignature.EmptyV),
             });
@@ -26,6 +30,26 @@ namespace FastLua.CodeGen
                 (StackSignature.Polymorphic_2, (int)WellKnownStackSignature.Polymorphic_2),
             });
             _nextId = (int)WellKnownStackSignature.Next;
+        }
+
+        ~SignatureManager()
+        {
+            DisposeStorage();
+        }
+
+        public void Dispose()
+        {
+            DisposeStorage();
+            GC.SuppressFinalize(this);
+        }
+
+        private void DisposeStorage()
+        {
+            foreach (var array in _storage)
+            {
+                UnsafeArray<StackSignature.StackSignatureData>.Free(array);
+            }
+            _storage.Clear();
         }
 
         public (StackSignature, int) Get(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
@@ -72,7 +96,19 @@ namespace FastLua.CodeGen
             return false;
         }
 
-        private (StackSignature, int) Create(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
+        private unsafe void Allocate(out StackSignature.StackSignatureData* a, out StackSignature.StackSignatureData* b)
+        {
+            if (_storageLastCount >= StorageArraySize)
+            {
+                _storage.Add(new(StorageArraySize));
+                _storageLastCount = 0;
+            }
+            a = _storage[^1].GetPointer(_storageLastCount);
+            b = _storage[^1].GetPointer(_storageLastCount + 1);
+            _storageLastCount += 2;
+        }
+
+        private unsafe (StackSignature, int) Create(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
         {
             if (fixedList.Any(t => t != VMSpecializationType.Unknown && t != VMSpecializationType.Polymorphic))
             {
@@ -83,7 +119,12 @@ namespace FastLua.CodeGen
             {
                 throw new NotImplementedException();
             }
-            var (nv, v) = StackSignature.CreateUnspecialized(fixedList.Count);
+
+            Allocate(out var nvptr, out var vptr);
+            StackSignature.CreateUnspecialized(fixedList.Count, nvptr, vptr);
+            var nv = new StackSignature(nvptr);
+            var v = new StackSignature(vptr);
+
             var list = _knownSignatures[fixedList.Count];
             var nvr = (nv, i: -1);
             var vr = (v, i: -1);

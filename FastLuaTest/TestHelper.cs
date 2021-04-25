@@ -15,6 +15,7 @@ namespace FastLuaTest
 {
     internal static class TestHelper
     {
+        private static readonly CodeGenerator _codeGen = new();
         public static readonly Table AssertEnv;
         public static readonly Table DefaultEnv;
 
@@ -82,8 +83,7 @@ namespace FastLuaTest
             var reader = new BinaryReader(stream);
             var newAst = SyntaxRoot.Read(reader);
 
-            var codeGen = new CodeGenerator();
-            var newClosure = codeGen.Compile(ast, null);
+            var newClosure = _codeGen.Compile(ast, null);
 
             CompareProto(closure.Proto, newClosure.Proto);
         }
@@ -105,8 +105,7 @@ namespace FastLuaTest
 
             var ast = builder.Finish();
 
-            var codeGen = new CodeGenerator();
-            var ret = codeGen.Compile(ast, env);
+            var ret = _codeGen.Compile(ast, env);
             CheckASTSerialization(ast, ret);
 
             return ret;

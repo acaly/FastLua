@@ -31,8 +31,7 @@ namespace FastLuaBenchmark
 
             var ast = builder.Finish();
 
-            var codeGen = new CodeGenerator();
-            return codeGen.Compile(ast, _fastLuaEnv);
+            return _fastLuaCodeGen.Compile(ast, _fastLuaEnv);
         }
 
         private void PrepareScripts(string name)
@@ -49,6 +48,7 @@ namespace FastLuaBenchmark
             set => PrepareScripts(value);
         }
 
+        private static readonly CodeGenerator _fastLuaCodeGen = new();
         private static readonly FastLua.VM.Table _fastLuaEnv = new();
         private readonly Thread _fastLuaThread = new();
         private readonly AsyncStackInfo _fastLuaStackFrame;

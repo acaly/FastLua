@@ -36,7 +36,7 @@ namespace FastLua.VM
         public int TotalSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => VLength + Type?.FixedSize ?? 0;
+            get => VLength + Type.FixedSize;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

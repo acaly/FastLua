@@ -141,7 +141,7 @@ namespace FastLua.CodeGen
             {
                 int l1 = _sig;
                 int l2 = 0;
-                if (_varargSigType is null || _varargSigType.IsEndCompatibleWith(_sigType))
+                if (_varargSigType.IsNull || _varargSigType.IsEndCompatibleWith(_sigType))
                 {
                     l2 = _seqStack.Offset;
                 }

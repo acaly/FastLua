@@ -46,7 +46,7 @@ namespace FastLua.VM
 
             //C#-Lua boundary: after.
 
-            Debug.Assert(sig.Type is not null);
+            Debug.Assert(!sig.Type.IsNull);
             if (sig.Type.GlobalId != (ulong)WellKnownStackSignature.EmptyV)
             {
                 if (sig.Type.IsUnspecialized)
