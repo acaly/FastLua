@@ -31,6 +31,34 @@ namespace FastLua.VM
         internal double Number;
         internal object Object;
 
+        public override string ToString()
+        {
+            switch (Type)
+            {
+            case VMSpecializationType.Nil:
+                return "nil";
+            case VMSpecializationType.Bool:
+                return BoolVal ? "true" : "false";
+            case VMSpecializationType.Int:
+                return $"{NumberVal} (int)";
+            case VMSpecializationType.Double:
+                return NumberVal.ToString();
+            case VMSpecializationType.LClosure:
+                return $"[LClosure:0x{Object?.GetHashCode() ?? 0:X8}]";
+            case VMSpecializationType.NClosure:
+                return $"[NClosure/{Object?.GetType().Name ?? "null"}:0x{Object?.GetHashCode() ?? 0:X8}]";
+            case VMSpecializationType.Table:
+                return $"[Table:0x{Object?.GetHashCode() ?? 0:X8}]";
+            case VMSpecializationType.Thread:
+                return $"[Thread:0x{Object?.GetHashCode() ?? 0:X8}]";
+            case VMSpecializationType.UserData:
+                return $"[UserData:0x{Object?.GetHashCode() ?? 0:X8}]";
+            case VMSpecializationType.String:
+                return StringVal.ToString();
+            default: return $"[Unknown/{Type}:{Object?.GetType().Name ?? "null"}]";
+            }
+        }
+
         public override bool Equals(object obj)
         {
             return obj is TypedValue value && Equals(value);
@@ -38,12 +66,24 @@ namespace FastLua.VM
 
         public bool Equals(TypedValue other)
         {
+            if (Type != other.Type)
+            {
+                if (ValueType == LuaValueType.Number && other.ValueType == LuaValueType.Number)
+                {
+                    return NumberVal == other.NumberVal;
+                }
+                return false;
+            }
             return BitConverter.DoubleToInt64Bits(Number) == BitConverter.DoubleToInt64Bits(other.Number) &&
                    EqualityComparer<object>.Default.Equals(Object, other.Object);
         }
 
         public override int GetHashCode()
         {
+            if (ValueType == LuaValueType.Number)
+            {
+                return NumberVal.GetHashCode();
+            }
             return HashCode.Combine(Number, Object);
         }
 
