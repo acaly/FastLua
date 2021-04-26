@@ -57,9 +57,9 @@ namespace FastLua.VM
     public struct AsyncStackInfo
     {
         internal readonly Thread Thread;
-        internal int StackFrame;
+        internal StackFrameRef StackFrame;
 
-        internal AsyncStackInfo(Thread thread, int frame)
+        internal AsyncStackInfo(Thread thread, StackFrameRef frame)
         {
             Thread = thread;
             StackFrame = frame;
@@ -68,7 +68,7 @@ namespace FastLua.VM
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal readonly Span<TypedValue> GetFrameValues()
         {
-            return Thread.GetFrameValues(in Thread.GetFrame(StackFrame));
+            return Thread.GetFrameValues(in StackFrame.Data);
         }
 
         public readonly void Write(int start, ReadOnlySpan<TypedValue> values)
@@ -97,7 +97,7 @@ namespace FastLua.VM
 
         public readonly void Reallocate(int newSize)
         {
-            Thread.ReallocateFrameInternal(ref Thread.GetFrame(StackFrame), newSize);
+            Thread.ReallocateFrameInternal(StackFrame, newSize);
         }
     }
 

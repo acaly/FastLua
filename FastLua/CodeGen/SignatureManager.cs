@@ -9,8 +9,7 @@ namespace FastLua.CodeGen
 {
     internal sealed class SignatureManager : IDisposable
     {
-        private readonly List<UnsafeArray<StackSignature.StackSignatureData>> _storage = new();
-        private int _storageLastCount = StorageArraySize;
+        private readonly UnsafeStorage<StackSignature.StackSignatureData> _storage = new();
         private const int StorageArraySize = 10;
 
         private readonly Dictionary<int, List<(StackSignature s, int i)>> _knownSignatures = new();
@@ -32,24 +31,9 @@ namespace FastLua.CodeGen
             _nextId = (int)WellKnownStackSignature.Next;
         }
 
-        ~SignatureManager()
-        {
-            DisposeStorage();
-        }
-
         public void Dispose()
         {
-            DisposeStorage();
-            GC.SuppressFinalize(this);
-        }
-
-        private void DisposeStorage()
-        {
-            foreach (var array in _storage)
-            {
-                UnsafeArray<StackSignature.StackSignatureData>.Free(array);
-            }
-            _storage.Clear();
+            _storage.Dispose();
         }
 
         public (StackSignature, int) Get(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)
@@ -98,14 +82,8 @@ namespace FastLua.CodeGen
 
         private unsafe void Allocate(out StackSignature.StackSignatureData* a, out StackSignature.StackSignatureData* b)
         {
-            if (_storageLastCount >= StorageArraySize)
-            {
-                _storage.Add(new(StorageArraySize));
-                _storageLastCount = 0;
-            }
-            a = _storage[^1].GetPointer(_storageLastCount);
-            b = _storage[^1].GetPointer(_storageLastCount + 1);
-            _storageLastCount += 2;
+            a = _storage.Get();
+            b = _storage.Get();
         }
 
         private unsafe (StackSignature, int) Create(List<VMSpecializationType> fixedList, VMSpecializationType? vararg)

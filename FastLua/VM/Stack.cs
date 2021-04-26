@@ -50,5 +50,52 @@ namespace FastLua.VM
         public int SigOffset;
 
         public StackFrameVarargInfo VarargInfo;
+
+        public StackFrameRef Next;
+        public StackFrameRef Prev;
+        public int Index;
+    }
+
+    internal unsafe readonly struct StackFrameRef : IEquatable<StackFrameRef>
+    {
+        private readonly StackFrame* _ptr;
+
+        public StackFrameRef(StackFrame* ptr)
+        {
+            _ptr = ptr;
+        }
+
+        public ref StackFrame Data
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref *_ptr;
+        }
+
+        public bool IsNull => _ptr == null;
+
+        public override bool Equals(object obj)
+        {
+            return obj is StackFrameRef @ref && Equals(@ref);
+        }
+
+        public bool Equals(StackFrameRef other)
+        {
+            return EqualityComparer<IntPtr>.Default.Equals((IntPtr)_ptr, (IntPtr)other._ptr);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine((IntPtr)_ptr);
+        }
+
+        public static bool operator ==(StackFrameRef left, StackFrameRef right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(StackFrameRef left, StackFrameRef right)
+        {
+            return !(left == right);
+        }
     }
 }

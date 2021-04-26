@@ -99,13 +99,13 @@ namespace FastLuaBenchmark
             return ret.NumberVal;
         }
 
-        [Benchmark]
+        //[Benchmark]
         public double MoonSharp()
         {
             return _moonSharpClosure.Call().Number;
         }
 
-        [Benchmark]
+        //[Benchmark]
         public double KopiLua()
         {
             Lua.lua_pushvalue(_kopiLuaState, -1);
@@ -122,8 +122,8 @@ namespace FastLuaBenchmark
                 args = new[]
                 {
                     "--filter", "Program",
-                    "--maxIterationCount", "20",
-                    "--iterationTime", "200",
+                    //"--maxIterationCount", "20",
+                    "--iterationTime", "2000",
                 };
             }
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args, new CustomConfig());
